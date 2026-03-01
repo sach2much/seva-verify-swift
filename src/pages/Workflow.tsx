@@ -118,18 +118,24 @@ const Workflow = () => (
                   </div>
                 ))}
               </div>
-              {/* Elbow connector between row 1→2: right side, like the drawing */}
+              {/* Elbow connector: from right-center of node 4, out right, down, then left into right-center of node 5 */}
               {ri === 0 && (
-                <div className="flex justify-end" style={{ width: totalWidth }}>
-                  <svg width="60" height="56" viewBox="0 0 60 56" fill="none" className="text-muted-foreground/40">
-                    {/* Horizontal line from node 4 center-bottom going right */}
-                    <line x1="0" y1="2" x2="58" y2="2" stroke="currentColor" strokeWidth="2" />
+                <div className="relative" style={{ width: totalWidth, height: 48 }}>
+                  <svg
+                    className="absolute text-muted-foreground/40"
+                    style={{ top: -60, right: -40, width: 40, height: 48 + 120 }}
+                    viewBox="0 0 40 168"
+                    fill="none"
+                    preserveAspectRatio="none"
+                  >
+                    {/* Horizontal line going right from node 4 right edge */}
+                    <line x1="0" y1="60" x2="24" y2="60" stroke="currentColor" strokeWidth="2" />
                     {/* Vertical line going down */}
-                    <line x1="58" y1="2" x2="58" y2="54" stroke="currentColor" strokeWidth="2" />
-                    {/* Horizontal line going left with arrowhead */}
-                    <line x1="58" y1="54" x2="8" y2="54" stroke="currentColor" strokeWidth="2" />
+                    <line x1="24" y1="60" x2="24" y2="108" stroke="currentColor" strokeWidth="2" />
+                    {/* Horizontal line going left into node 5 */}
+                    <line x1="24" y1="108" x2="4" y2="108" stroke="currentColor" strokeWidth="2" />
                     {/* Arrowhead pointing left */}
-                    <polygon points="12,50 12,58 4,54" fill="currentColor" />
+                    <polygon points="8,104 8,112 0,108" fill="currentColor" />
                   </svg>
                 </div>
               )}
