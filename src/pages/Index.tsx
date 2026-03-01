@@ -228,10 +228,10 @@ const Index = () => {
                 <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-xl bg-primary/10">
                   <MapPin className="h-6 w-6 text-primary" />
                 </div>
-                <h3 className="mb-1 text-sm font-semibold text-foreground">Head Office</h3>
-                <p className="text-sm text-muted-foreground">Ministry of Electronics &amp; IT</p>
-                <p className="text-sm text-muted-foreground">Electronics Niketan, CGO Complex</p>
-                <p className="text-sm text-muted-foreground">New Delhi — 110003</p>
+                <h3 className="mb-1 text-sm font-semibold text-foreground">Head Office — 100x Engineers</h3>
+                <p className="text-sm text-muted-foreground">No. 45 (Annexe), Someshwara, Halasuru</p>
+                <p className="text-sm text-muted-foreground">Hulsur Bazaar, Bangalore North</p>
+                <p className="text-sm text-muted-foreground">Karnataka, India — 560008</p>
               </CardContent>
             </Card>
           </div>
