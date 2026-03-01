@@ -37,15 +37,18 @@ const workflowModules = [
   { id: '05_operator_override', title: 'Operator Override', desc: 'Handles manual edits, decision events, and audit log entries from the operator UI.' },
 ];
 
-// Split into 3 rows: 4, 4, 2
-const pipelineRows = [
-  pipelineNodes.slice(0, 4),
-  pipelineNodes.slice(4, 8),
-  pipelineNodes.slice(8, 10),
+// Rows for Z-pattern: Row1 L→R, Row2 R→L, Row3 L→R
+const pipelineRows: { nodes: typeof pipelineNodes; direction: 'ltr' | 'rtl' }[] = [
+  { nodes: pipelineNodes.slice(0, 4), direction: 'ltr' },
+  { nodes: pipelineNodes.slice(4, 8), direction: 'rtl' },
+  { nodes: pipelineNodes.slice(8, 10), direction: 'ltr' },
 ];
 
+const TILE_W = 200;
+const GAP = 40; // arrow gap between tiles
+
 const PipelineTile = ({ node }: { node: typeof pipelineNodes[0] }) => (
-  <Card className="flex-1 border border-border bg-card">
+  <Card className="border border-border bg-card" style={{ width: TILE_W }}>
     <CardContent className="flex flex-col items-center gap-2 px-4 py-5 text-center">
       <div className={`flex h-11 w-11 items-center justify-center rounded-lg ${node.color.split(' ')[0]}`}>
         <node.icon className={`h-5 w-5 ${node.color.split(' ')[1]}`} />
@@ -55,27 +58,25 @@ const PipelineTile = ({ node }: { node: typeof pipelineNodes[0] }) => (
     </CardContent>
   </Card>
 );
-/* Elbow connector: ┐ then │ then └  (or mirrored) with 90° corners */
+
+/* Elbow connector between rows: 3-segment right-angle path */
 const ElbowConnector = ({ side }: { side: 'right' | 'left' }) => {
   const isRight = side === 'right';
   return (
-    <div className={`flex w-full ${isRight ? 'justify-end pr-[88px]' : 'justify-start pl-[88px]'}`}>
-      <div className="flex flex-col items-stretch" style={{ width: 28 }}>
-        {/* Top horizontal + corner */}
-        <div
-          className={`h-4 border-muted-foreground/40 ${
-            isRight ? 'border-r-2 border-t-2 rounded-tr' : 'border-l-2 border-t-2 rounded-tl'
-          }`}
-        />
-        {/* Vertical middle */}
-        <div className={`h-5 border-muted-foreground/40 ${isRight ? 'border-r-2' : 'border-l-2'}`} />
-        {/* Bottom corner + horizontal */}
-        <div
-          className={`h-4 border-muted-foreground/40 ${
-            isRight ? 'border-r-2 border-b-2 rounded-br' : 'border-l-2 border-b-2 rounded-bl'
-          }`}
-        />
-      </div>
+    <div className="relative w-full" style={{ height: 48 }}>
+      {/* SVG spanning full width so we can position the elbow at the correct side */}
+      <svg className="absolute inset-0 h-full w-full overflow-visible text-muted-foreground/40">
+        {isRight ? (
+          <>
+            {/* From center-bottom of last tile in row → right edge, down, then to center-top of last tile in next row */}
+            <line x1="50%" y1="0" x2="calc(50% + 14px)" y2="0" stroke="currentColor" strokeWidth="2" />
+            <line x1="calc(50% + 14px)" y1="0" x2="calc(50% + 14px)" y2="100%" stroke="currentColor" strokeWidth="2" />
+            <line x1="calc(50% + 14px)" y1="100%" x2="50%" y2="100%" stroke="currentColor" strokeWidth="2" />
+            {/* Arrowhead pointing down-left */}
+            <polygon points="calc(50% - 4), calc(100% - 4) calc(50% + 4), calc(100% - 4) 50%, 100%" fill="currentColor" />
+          </>
+        ) : null}
+      </svg>
     </div>
   );
 };
@@ -94,25 +95,44 @@ const Workflow = () => (
       <h2 className="mb-6 text-lg font-semibold text-foreground">Processing Pipeline</h2>
       <div className="mb-14 flex flex-col items-center gap-0">
         {pipelineRows.map((row, ri) => {
-          const isReversed = ri % 2 === 1;
-          const orderedRow = isReversed ? [...row].reverse() : row;
+          const isRtl = row.direction === 'rtl';
+          // For RTL rows, reverse the array so visually it reads right-to-left
+          const displayNodes = isRtl ? [...row.nodes].reverse() : row.nodes;
           return (
-            <div key={ri} className="flex w-full flex-col items-center">
-              <div className={`flex w-full items-stretch gap-0 ${isReversed ? 'justify-center flex-row-reverse' : 'justify-center'}`}>
-                {orderedRow.map((node, ci) => (
+            <div key={ri} className="flex flex-col items-center">
+              {/* Row of tiles */}
+              <div className="flex items-center">
+                {displayNodes.map((node, ci) => (
                   <div key={ci} className="flex items-center">
                     {ci > 0 && (
-                      <ArrowRight className={`mx-3 h-4 w-4 shrink-0 text-muted-foreground/50 ${isReversed ? 'rotate-180' : ''}`} />
+                      <div className="flex items-center" style={{ width: GAP }}>
+                        <div className="h-[2px] flex-1 bg-muted-foreground/30" />
+                        {isRtl ? (
+                          <ArrowRight className="h-4 w-4 shrink-0 rotate-180 text-muted-foreground/50" />
+                        ) : (
+                          <ArrowRight className="h-4 w-4 shrink-0 text-muted-foreground/50" />
+                        )}
+                      </div>
                     )}
-                    <div className="w-[200px]">
-                      <PipelineTile node={node} />
-                    </div>
+                    <PipelineTile node={node} />
                   </div>
                 ))}
               </div>
-              {/* Elbow connector between rows */}
+              {/* Elbow connector to next row */}
               {ri < pipelineRows.length - 1 && (
-                <ElbowConnector side={isReversed ? 'left' : 'right'} />
+                <div
+                  className={`flex ${isRtl ? 'justify-start' : 'justify-end'}`}
+                  style={{ width: displayNodes.length * TILE_W + (displayNodes.length - 1) * GAP }}
+                >
+                  <div className="flex flex-col" style={{ width: TILE_W / 2 }}>
+                    <div className={`h-4 ${isRtl ? 'border-l-2' : 'border-r-2'} border-muted-foreground/30`} />
+                    <div className={`h-3 ${isRtl ? 'border-l-2 border-b-2 rounded-bl-lg' : 'border-r-2 border-b-2 rounded-br-lg'} border-muted-foreground/30`} />
+                    <div className={`h-3 ${isRtl ? 'border-l-2 border-t-2 rounded-tl-lg' : 'border-r-2 border-t-2 rounded-tr-lg'} border-muted-foreground/30`} />
+                    <div className={`h-4 ${isRtl ? 'border-l-2' : 'border-r-2'} border-muted-foreground/30 relative`}>
+                      <ArrowDown className={`absolute bottom-[-8px] h-4 w-4 text-muted-foreground/50 ${isRtl ? 'left-[-8px]' : 'right-[-8px]'}`} />
+                    </div>
+                  </div>
+                </div>
               )}
             </div>
           );
