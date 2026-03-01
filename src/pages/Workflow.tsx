@@ -139,8 +139,27 @@ const Workflow = () => (
                   </svg>
                 </div>
               )}
-              {/* Spacing between other rows */}
-              {ri === 1 && ri < pipelineRows.length - 1 && <div className="h-6" />}
+              {/* Elbow connector: from left-center of node 8, out left, down, then right into left-center of node 9 */}
+              {ri === 1 && (
+                <div className="relative" style={{ width: totalWidth, height: 48 }}>
+                  <svg
+                    className="absolute text-muted-foreground/40"
+                    style={{ top: -60, left: -40, width: 40, height: 48 + 120 }}
+                    viewBox="0 0 40 168"
+                    fill="none"
+                    preserveAspectRatio="none"
+                  >
+                    {/* Horizontal line going left from node 8 left edge */}
+                    <line x1="40" y1="60" x2="16" y2="60" stroke="currentColor" strokeWidth="2" />
+                    {/* Vertical line going down */}
+                    <line x1="16" y1="60" x2="16" y2="108" stroke="currentColor" strokeWidth="2" />
+                    {/* Horizontal line going right into node 9 */}
+                    <line x1="16" y1="108" x2="36" y2="108" stroke="currentColor" strokeWidth="2" />
+                    {/* Arrowhead pointing right */}
+                    <polygon points="32,104 32,112 40,108" fill="currentColor" />
+                  </svg>
+                </div>
+              )}
             </div>
           );
         })}
