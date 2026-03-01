@@ -18,17 +18,17 @@ const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
 
   if (loading && !timedOut) {
     return (
-      <div className="flex min-h-screen items-center justify-center" style={{ background: '#0f172a' }}>
-        <div className="text-center">
-          <div className="animate-spin h-10 w-10 border-4 border-orange-500 border-t-transparent rounded-full mx-auto mb-4" />
-          <p className="text-white text-sm">Loading...</p>
+      <div style={{ display: 'flex', minHeight: '100vh', alignItems: 'center', justifyContent: 'center', background: '#0f172a' }}>
+        <div style={{ textAlign: 'center' }}>
+          <div style={{ width: 40, height: 40, border: '4px solid #f97316', borderTopColor: 'transparent', borderRadius: '50%', animation: 'spin 1s linear infinite', margin: '0 auto 16px' }} />
+          <p style={{ color: 'white', fontSize: 14 }}>Loading...</p>
         </div>
+        <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
       </div>
     );
   }
 
   if (!user) return <Navigate to="/login" replace />;
-
   return <>{children}</>;
 };
 
