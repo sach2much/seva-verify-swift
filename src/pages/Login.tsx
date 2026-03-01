@@ -1,20 +1,41 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { signInWithEmailAndPassword } from 'firebase/auth';
+import { auth } from '@/lib/firebase';
+import { ENV } from '@/config/env';
 import { Shield, Mail, Lock } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Label } from '@/components/ui/label';
+import { toast } from 'sonner';
 
 const Login = () => {
   const navigate = useNavigate();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [loading, setLoading] = useState(false);
 
-  const handleLogin = (e: React.FormEvent) => {
+  const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
-    navigate('/dashboard');
+
+    // If Firebase is not configured, go to dashboard in demo mode
+    if (!ENV.FIREBASE_API_KEY) {
+      toast.info('Running in demo mode — no Firebase configured');
+      navigate('/dashboard');
+      return;
+    }
+
+    setLoading(true);
+    try {
+      await signInWithEmailAndPassword(auth, email, password);
+      navigate('/dashboard');
+    } catch {
+      toast.error('Invalid email or password');
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -45,7 +66,9 @@ const Login = () => {
                 <Input id="password" type="password" placeholder="••••••••" value={password} onChange={e => setPassword(e.target.value)} className="pl-9" />
               </div>
             </div>
-            <Button type="submit" className="w-full font-semibold">Sign In</Button>
+            <Button type="submit" className="w-full font-semibold" disabled={loading}>
+              {loading ? 'Signing in…' : 'Sign In'}
+            </Button>
             <div className="flex justify-center gap-2 pt-2">
               <Badge variant="outline" className="border-primary/30 text-primary">Operator</Badge>
               <Badge variant="outline" className="border-success/30 text-success">Supervisor</Badge>

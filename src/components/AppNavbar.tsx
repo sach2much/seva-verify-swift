@@ -2,9 +2,16 @@ import { Shield, LogOut, User } from 'lucide-react';
 import { Link, useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
+import { useAuth } from '@/context/AuthContext';
 
 const AppNavbar = () => {
   const navigate = useNavigate();
+  const { user, role, logout } = useAuth();
+
+  const handleLogout = async () => {
+    await logout();
+    navigate('/login');
+  };
 
   return (
     <nav className="sticky top-0 z-50 border-b border-border bg-card/90 backdrop-blur-md">
@@ -22,11 +29,12 @@ const AppNavbar = () => {
         </div>
 
         <div className="flex items-center gap-3">
-          <Badge variant="outline" className="border-primary/30 text-primary">Supervisor</Badge>
+          <Badge variant="outline" className="border-primary/30 text-primary">{role || 'Supervisor'}</Badge>
           <div className="flex h-8 w-8 items-center justify-center rounded-full bg-secondary">
             <User className="h-4 w-4 text-muted-foreground" />
           </div>
-          <Button variant="ghost" size="sm" onClick={() => navigate('/login')} className="text-muted-foreground">
+          {user?.email && <span className="hidden text-xs text-muted-foreground lg:inline">{user.email}</span>}
+          <Button variant="ghost" size="sm" onClick={handleLogout} className="text-muted-foreground">
             <LogOut className="mr-1 h-4 w-4" />
             <span className="hidden sm:inline">Logout</span>
           </Button>

@@ -1,16 +1,21 @@
-import { useState } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import AppNavbar from '@/components/AppNavbar';
 import { StatusBadge, RiskBadge, SeverityBadge, ConfidenceBadge } from '@/components/StatusBadges';
-import { sampleFields, validationResults, authenticityChecks, auditTimeline, mockCases } from '@/data/mockData';
+import { sampleFields, validationResults, authenticityChecks, auditTimeline, mockCases, type CaseStatus } from '@/data/mockData';
+import { getCase, saveFieldEdits, submitDecision, type Case as ApiCase } from '@/lib/api';
+import { ENV } from '@/config/env';
+import { useAuth } from '@/context/AuthContext';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
+import { Skeleton } from '@/components/ui/skeleton';
 import {
   ChevronRight, Download, CheckCircle, AlertTriangle, XCircle,
-  Upload as UploadIcon, ScanSearch, Layers, FileOutput, ShieldCheck, Pencil, Clock, ChevronDown
+  Upload as UploadIcon, ScanSearch, Layers, FileOutput, ShieldCheck, Pencil, Clock, ChevronDown, ArrowLeft
 } from 'lucide-react';
+import { toast } from 'sonner';
 
 const eventIcons: Record<string, typeof CheckCircle> = {
   UPLOAD: UploadIcon, OCR_COMPLETE: ScanSearch, CLASSIFICATION: Layers,
@@ -18,10 +23,162 @@ const eventIcons: Record<string, typeof CheckCircle> = {
   EDIT: Pencil, DECISION: CheckCircle,
 };
 
+// Loading skeleton for the whole page
+const CaseDetailSkeleton = () => (
+  <div className="min-h-screen bg-background">
+    <AppNavbar />
+    <main className="container mx-auto px-4 py-6">
+      <Skeleton className="mb-4 h-4 w-64" />
+      <Skeleton className="mb-4 h-8 w-48" />
+      <div className="grid gap-6 lg:grid-cols-5">
+        <div className="space-y-6 lg:col-span-3">
+          <Skeleton className="h-48 w-full rounded-lg" />
+          <Skeleton className="h-64 w-full rounded-lg" />
+        </div>
+        <div className="space-y-6 lg:col-span-2">
+          <Skeleton className="h-48 w-full rounded-lg" />
+          <Skeleton className="h-64 w-full rounded-lg" />
+        </div>
+      </div>
+    </main>
+  </div>
+);
+
+const CaseNotFound = () => (
+  <div className="min-h-screen bg-background">
+    <AppNavbar />
+    <main className="container mx-auto flex flex-col items-center justify-center px-4 py-20">
+      <ScanSearch className="mb-4 h-16 w-16 text-muted-foreground" />
+      <h1 className="mb-2 text-xl font-bold text-foreground">Case Not Found</h1>
+      <p className="mb-6 text-muted-foreground">The case you're looking for doesn't exist.</p>
+      <Link to="/dashboard"><Button><ArrowLeft className="mr-2 h-4 w-4" />Back to Dashboard</Button></Link>
+    </main>
+  </div>
+);
+
 const CaseDetail = () => {
   const { caseId } = useParams();
-  const caseData = mockCases.find(c => c.id === caseId) || mockCases[0];
+  const { user } = useAuth();
   const [expandedRule, setExpandedRule] = useState<string | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [notFound, setNotFound] = useState(false);
+  const [apiCase, setApiCase] = useState<ApiCase | null>(null);
+  const [savingFields, setSavingFields] = useState(false);
+  const [decidingApprove, setDecidingApprove] = useState(false);
+  const [decidingReject, setDecidingReject] = useState(false);
+  const [localStatus, setLocalStatus] = useState<string | null>(null);
+  const fieldRefs = useRef<Record<string, HTMLInputElement | null>>({});
+
+  // Use mock data as fallback
+  const mockCase = mockCases.find(c => c.id === caseId) || mockCases[0];
+  const isFirebaseConfigured = !!ENV.FIREBASE_API_KEY;
+
+  useEffect(() => {
+    if (!caseId) return;
+
+    if (!isFirebaseConfigured) {
+      // Demo mode: use mock data
+      setLoading(false);
+      if (!mockCases.find(c => c.id === caseId)) {
+        // Still show mock[0] for demo
+      }
+      return;
+    }
+
+    getCase(caseId).then(c => {
+      if (c) {
+        setApiCase(c);
+      } else {
+        setNotFound(true);
+      }
+    }).catch(() => {
+      // Firestore error — fall back to mock
+    }).finally(() => setLoading(false));
+  }, [caseId, isFirebaseConfigured]);
+
+  if (loading) return <CaseDetailSkeleton />;
+  if (notFound && isFirebaseConfigured) return <CaseNotFound />;
+
+  // Resolve data sources
+  const caseData = apiCase ? {
+    id: apiCase.caseId,
+    applicantName: apiCase.applicantName || 'Unknown',
+    documentType: apiCase.docTypeFinal || apiCase.docTypePredicted || 'Unknown',
+    status: localStatus || apiCase.status,
+    riskBand: apiCase.riskBand,
+    riskScore: apiCase.riskScore,
+    createdAt: apiCase.createdAt,
+  } : { ...mockCase, status: localStatus || mockCase.status };
+
+  const fields = apiCase?.extractedFields?.map(f => ({
+    name: f.label,
+    value: f.value,
+    confidence: f.confidenceBand,
+    evidence: f.evidence?.snippet || '',
+  })) ?? sampleFields;
+
+  const validations = apiCase?.validations?.map(v => ({
+    ruleId: v.ruleId,
+    severity: v.severity as 'PASS' | 'WARN' | 'FAIL',
+    message: v.message,
+    explain: v.explain,
+  })) ?? validationResults;
+
+  const timeline = apiCase?.auditTrail?.map(e => ({
+    event: e.eventType,
+    timestamp: e.timestamp,
+    actor: e.actor,
+    description: e.description,
+  })) ?? auditTimeline;
+
+  const userEmail = user?.email || 'demo@sevakendra.gov.in';
+
+  const handleSaveEdits = async () => {
+    if (!apiCase?.extractedFields || !isFirebaseConfigured) {
+      toast.info('Field edits saved locally (demo mode)');
+      return;
+    }
+    setSavingFields(true);
+    try {
+      const editedFields = apiCase.extractedFields.map(f => ({
+        ...f,
+        value: fieldRefs.current[f.key]?.value ?? f.value,
+      }));
+      await saveFieldEdits(caseData.id, editedFields, userEmail);
+      toast.success('Field edits saved successfully');
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'Failed to save edits');
+    } finally {
+      setSavingFields(false);
+    }
+  };
+
+  const handleDecision = async (decision: 'APPROVED' | 'REJECTED') => {
+    const setDeciding = decision === 'APPROVED' ? setDecidingApprove : setDecidingReject;
+    setDeciding(true);
+    try {
+      if (isFirebaseConfigured) {
+        await submitDecision(caseData.id, decision, [], userEmail);
+      }
+      setLocalStatus(decision);
+      toast.success(`Case ${decision.toLowerCase()} successfully`);
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : `Failed to ${decision.toLowerCase()} case`);
+    } finally {
+      setDeciding(false);
+    }
+  };
+
+  const handleDownloadJSON = () => {
+    const data = apiCase || caseData;
+    const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `${caseData.id}-report.json`;
+    a.click();
+    URL.revokeObjectURL(url);
+  };
 
   return (
     <div className="min-h-screen bg-background">
@@ -38,7 +195,7 @@ const CaseDetail = () => {
 
         <div className="mb-4 flex items-center justify-between">
           <h1 className="text-xl font-bold text-foreground">Verification Report</h1>
-          <Button variant="outline" size="sm"><Download className="mr-2 h-4 w-4" />Download Report JSON</Button>
+          <Button variant="outline" size="sm" onClick={handleDownloadJSON}><Download className="mr-2 h-4 w-4" />Download Report JSON</Button>
         </div>
 
         <div className="grid gap-6 lg:grid-cols-5">
@@ -74,10 +231,16 @@ const CaseDetail = () => {
                       </tr>
                     </thead>
                     <tbody>
-                      {sampleFields.map((f, i) => (
+                      {fields.map((f, i) => (
                         <tr key={i} className="border-b border-border/50">
                           <td className="py-2.5 text-muted-foreground">{f.name}</td>
-                          <td className="py-2.5"><Input defaultValue={f.value} className="h-8 max-w-[200px] bg-secondary text-foreground" /></td>
+                          <td className="py-2.5">
+                            <Input
+                              defaultValue={f.value}
+                              ref={el => { if (apiCase?.extractedFields?.[i]) fieldRefs.current[apiCase.extractedFields[i].key] = el; }}
+                              className="h-8 max-w-[200px] bg-secondary text-foreground"
+                            />
+                          </td>
                           <td className="py-2.5"><ConfidenceBadge confidence={f.confidence} /></td>
                           <td className="py-2.5 text-xs text-muted-foreground hidden md:table-cell">{f.evidence}</td>
                         </tr>
@@ -85,7 +248,9 @@ const CaseDetail = () => {
                     </tbody>
                   </table>
                 </div>
-                <Button variant="outline" size="sm" className="mt-4 border-primary/30 text-primary hover:bg-primary/10">Save Edits</Button>
+                <Button variant="outline" size="sm" className="mt-4 border-primary/30 text-primary hover:bg-primary/10" onClick={handleSaveEdits} disabled={savingFields}>
+                  {savingFields ? 'Saving…' : 'Save Edits'}
+                </Button>
               </CardContent>
             </Card>
           </div>
@@ -100,7 +265,7 @@ const CaseDetail = () => {
                     <p className="text-xs text-muted-foreground">Case ID</p>
                     <p className="font-mono font-bold text-foreground">{caseData.id}</p>
                   </div>
-                  <StatusBadge status={caseData.status} />
+                  <StatusBadge status={caseData.status as CaseStatus} />
                 </div>
                 <div>
                   <p className="text-xs text-muted-foreground">Document Type</p>
@@ -122,8 +287,12 @@ const CaseDetail = () => {
                   </div>
                 </div>
                 <div className="flex gap-2 pt-2">
-                  <Button size="sm" className="flex-1 bg-success hover:bg-success/90 text-success-foreground"><CheckCircle className="mr-1 h-4 w-4" />Approve</Button>
-                  <Button size="sm" variant="destructive" className="flex-1"><XCircle className="mr-1 h-4 w-4" />Reject</Button>
+                  <Button size="sm" className="flex-1 bg-success hover:bg-success/90 text-success-foreground" onClick={() => handleDecision('APPROVED')} disabled={decidingApprove}>
+                    <CheckCircle className="mr-1 h-4 w-4" />{decidingApprove ? 'Approving…' : 'Approve'}
+                  </Button>
+                  <Button size="sm" variant="destructive" className="flex-1" onClick={() => handleDecision('REJECTED')} disabled={decidingReject}>
+                    <XCircle className="mr-1 h-4 w-4" />{decidingReject ? 'Rejecting…' : 'Reject'}
+                  </Button>
                 </div>
               </CardContent>
             </Card>
@@ -134,7 +303,7 @@ const CaseDetail = () => {
                 <CardTitle className="text-base text-foreground">Validation & Flags</CardTitle>
               </CardHeader>
               <CardContent className="space-y-2">
-                {validationResults.map((v, i) => (
+                {validations.map((v, i) => (
                   <div key={i} className="rounded-lg border border-border/50 bg-secondary/50 p-3">
                     <button className="flex w-full items-center gap-2 text-left" onClick={() => setExpandedRule(expandedRule === v.ruleId ? null : v.ruleId)}>
                       {v.severity === 'PASS' ? <CheckCircle className="h-4 w-4 shrink-0 text-success" /> : v.severity === 'WARN' ? <AlertTriangle className="h-4 w-4 shrink-0 text-warning" /> : <XCircle className="h-4 w-4 shrink-0 text-destructive" />}
@@ -174,7 +343,7 @@ const CaseDetail = () => {
               </CardHeader>
               <CardContent>
                 <div className="relative space-y-4 pl-6 before:absolute before:left-[11px] before:top-2 before:h-[calc(100%-16px)] before:w-px before:bg-border">
-                  {auditTimeline.map((e, i) => {
+                  {timeline.map((e, i) => {
                     const Icon = eventIcons[e.event] || Clock;
                     return (
                       <div key={i} className="relative">
