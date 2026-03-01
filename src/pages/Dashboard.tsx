@@ -42,7 +42,6 @@ const Dashboard = () => {
   const [demoMode, setDemoMode] = useState(false);
 
   useEffect(() => {
-    // If Firebase is not configured, fall back to mock data
     if (!ENV.FIREBASE_API_KEY) {
       setLiveCases(null);
       setDemoMode(true);
@@ -50,13 +49,23 @@ const Dashboard = () => {
       return;
     }
 
+    const timeout = setTimeout(() => {
+      setDemoMode(true);
+      setLoading(false);
+    }, 3000);
+
     try {
       const unsubscribe = subscribeToCases((cases) => {
+        clearTimeout(timeout);
         setLiveCases(cases.map(mapApiCase));
         setLoading(false);
       });
-      return () => unsubscribe();
+      return () => {
+        clearTimeout(timeout);
+        unsubscribe();
+      };
     } catch {
+      clearTimeout(timeout);
       setDemoMode(true);
       setLoading(false);
     }
