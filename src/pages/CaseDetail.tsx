@@ -192,6 +192,13 @@ const CaseDetail = () => {
           <span className="text-foreground">{caseData.id}</span>
         </div>
 
+        {!apiCase && isFirebaseConfigured && (
+          <div className="mb-4 flex items-center gap-2 rounded-lg border border-warning/40 bg-warning/10 px-4 py-2.5 text-sm text-warning-foreground">
+            <AlertTriangle className="h-4 w-4 shrink-0 text-warning" />
+            <span>Demo Mode — showing sample data. Upload a document to see real OCR results.</span>
+          </div>
+        )}
+
         <div className="mb-4 flex items-center justify-between">
           <h1 className="text-xl font-bold text-foreground">Verification Report</h1>
           <Button variant="outline" size="sm" onClick={handleDownloadJSON}><Download className="mr-2 h-4 w-4" />Download Report JSON</Button>
