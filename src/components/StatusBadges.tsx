@@ -30,12 +30,12 @@ const confidenceConfig: Record<Confidence, string> = {
 };
 
 export const StatusBadge = ({ status }: { status: CaseStatus }) => {
-  const cfg = statusConfig[status];
+  const cfg = statusConfig[status] ?? { className: 'bg-muted text-muted-foreground', label: status };
   return <Badge className={`${cfg.className} border-0 font-medium`}>{cfg.label}</Badge>;
 };
 
 export const RiskBadge = ({ band }: { band: RiskBand }) => (
-  <Badge className={`${riskConfig[band]} border-0 font-medium`}>{band}</Badge>
+  <Badge className={`${riskConfig[band] ?? 'bg-muted text-muted-foreground'} border-0 font-medium`}>{band ?? 'N/A'}</Badge>
 );
 
 export const SeverityBadge = ({ severity }: { severity: Severity }) => (
