@@ -19,7 +19,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     if (!auth) {
       // No Firebase configured — treat as demo mode (authenticated)
-      setUser(null);
+      setUser({ uid: 'demo', email: 'operator@sevakendra.gov.in' } as any);
       setRole('Operator');
       setLoading(false);
       return;

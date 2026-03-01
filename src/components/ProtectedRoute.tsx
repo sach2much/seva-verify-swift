@@ -1,7 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Navigate } from 'react-router-dom';
 import { useAuth } from '@/context/AuthContext';
-import { ENV } from '@/config/env';
 
 const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
   const { user, loading } = useAuth();
@@ -13,8 +12,6 @@ const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
       return () => clearTimeout(t);
     }
   }, [loading]);
-
-  if (!ENV.FIREBASE_API_KEY) return <>{children}</>;
 
   if (loading && !timedOut) {
     return (
