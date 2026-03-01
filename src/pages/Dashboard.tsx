@@ -55,11 +55,18 @@ const Dashboard = () => {
     }, 3000);
 
     try {
-      const unsubscribe = subscribeToCases((cases) => {
-        clearTimeout(timeout);
-        setLiveCases(cases.map(mapApiCase));
-        setLoading(false);
-      });
+      const unsubscribe = subscribeToCases(
+        (cases) => {
+          clearTimeout(timeout);
+          setLiveCases(cases.map(mapApiCase));
+          setLoading(false);
+        },
+        (err) => {
+          clearTimeout(timeout);
+          setDemoMode(true);
+          setLoading(false);
+        }
+      );
       return () => {
         clearTimeout(timeout);
         unsubscribe();

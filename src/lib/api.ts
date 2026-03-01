@@ -102,16 +102,22 @@ export async function getCase(caseId: string): Promise<Case | null> {
 }
 
 // ---- REAL-TIME CASE LISTENER ----
-export function subscribeToCases(callback: (cases: Case[]) => void) {
+export function subscribeToCases(callback: (cases: Case[]) => void, onError?: (err: Error) => void) {
   if (!db) {
     callback([]);
     return () => {};
   }
   const q = query(collection(db, 'cases'), orderBy('createdAt', 'desc'), limit(50));
-  return onSnapshot(q, (snapshot) => {
-    const cases = snapshot.docs.map(d => ({ caseId: d.id, ...d.data() } as Case));
-    callback(cases);
-  });
+  return onSnapshot(q,
+    (snapshot) => {
+      const cases = snapshot.docs.map(d => ({ caseId: d.id, ...d.data() } as Case));
+      callback(cases);
+    },
+    (error) => {
+      console.error('Firestore onSnapshot error:', error);
+      if (onError) onError(error);
+    }
+  );
 }
 
 // ---- SAVE FIELD EDITS ----
