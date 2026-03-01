@@ -118,8 +118,8 @@ const Workflow = () => (
                   </div>
                 ))}
               </div>
-              {/* Elbow connector to next row */}
-              {ri < pipelineRows.length - 1 && (
+              {/* Elbow connector to next row (skip between row 1 and row 2) */}
+              {ri < pipelineRows.length - 1 && ri !== 0 && (
                 <div
                   className={`flex ${isRtl ? 'justify-start' : 'justify-end'}`}
                   style={{ width: displayNodes.length * TILE_W + (displayNodes.length - 1) * GAP }}
