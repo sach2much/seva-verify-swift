@@ -40,53 +40,59 @@ const workflowModules = [
 const Workflow = () => (
   <div className="min-h-screen bg-background">
     <AppNavbar />
-    <main className="container mx-auto px-4 py-8">
-      <h1 className="mb-2 text-2xl font-bold text-foreground">Platform Architecture & Workflow</h1>
-      <p className="mb-8 text-muted-foreground">End-to-end document verification pipeline from upload to verified report.</p>
+    <main className="container mx-auto px-4 py-10">
+      {/* Header */}
+      <div className="mb-10 text-center">
+        <h1 className="mb-2 text-3xl font-bold tracking-tight text-foreground">Platform Architecture & Workflow</h1>
+        <p className="mx-auto max-w-2xl text-muted-foreground">End-to-end document verification pipeline — from upload to verified report.</p>
+      </div>
 
       {/* Pipeline */}
-      <div className="mb-12 flex flex-col items-center">
+      <h2 className="mb-6 text-lg font-semibold text-foreground">Processing Pipeline</h2>
+      <div className="mb-14 flex flex-col items-center gap-0">
         {pipelineNodes.map((node, i) => (
-          <div key={i} className="flex flex-col items-center">
-            <Card className={`w-full max-w-md border ${node.color} bg-card`}>
-              <CardContent className="flex items-center gap-4 p-4">
+          <div key={i} className="flex w-full max-w-lg flex-col items-center">
+            <Card className="w-full border border-border bg-card">
+              <CardContent className="flex items-center gap-4 px-5 py-4">
                 <div className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-lg ${node.color.split(' ')[0]}`}>
-                  <node.icon className="h-5 w-5" />
+                  <node.icon className={`h-5 w-5 ${node.color.split(' ')[1]}`} />
                 </div>
-                <div>
-                  <p className="font-semibold text-foreground">{node.title}</p>
-                  <p className="text-sm text-muted-foreground">{node.subtitle}</p>
+                <div className="min-w-0 flex-1">
+                  <p className="truncate text-sm font-semibold text-foreground">{node.title}</p>
+                  <p className="truncate text-xs text-muted-foreground">{node.subtitle}</p>
                 </div>
-                <Badge variant="outline" className="ml-auto border-border text-[10px] text-muted-foreground">{i + 1}</Badge>
+                <Badge variant="outline" className="shrink-0 border-border font-mono text-[10px] text-muted-foreground">
+                  Step {String(i + 1).padStart(2, '0')}
+                </Badge>
               </CardContent>
             </Card>
             {i < pipelineNodes.length - 1 && (
-              <ArrowDown className="my-2 h-5 w-5 text-muted-foreground" />
+              <div className="flex h-6 items-center justify-center">
+                <ArrowDown className="h-4 w-4 text-muted-foreground/60" />
+              </div>
             )}
           </div>
         ))}
       </div>
 
       {/* Tech Stack */}
-      <Card className="mb-8 border-border bg-card">
-        <CardHeader>
-          <CardTitle className="text-foreground">Tech Stack</CardTitle>
-        </CardHeader>
-        <CardContent>
+      <h2 className="mb-6 text-lg font-semibold text-foreground">Tech Stack</h2>
+      <Card className="mb-14 border-border bg-card">
+        <CardContent className="p-0">
           <Table>
             <TableHeader>
               <TableRow className="border-border hover:bg-transparent">
-                <TableHead className="text-muted-foreground">Layer</TableHead>
-                <TableHead className="text-muted-foreground">Tool</TableHead>
-                <TableHead className="text-muted-foreground">Purpose</TableHead>
+                <TableHead className="w-[140px] text-xs font-semibold uppercase tracking-wider text-muted-foreground">Layer</TableHead>
+                <TableHead className="w-[220px] text-xs font-semibold uppercase tracking-wider text-muted-foreground">Tool</TableHead>
+                <TableHead className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Purpose</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {techStack.map((r, i) => (
                 <TableRow key={i} className="border-border">
-                  <TableCell className="font-medium text-foreground">{r.layer}</TableCell>
-                  <TableCell className="text-muted-foreground">{r.tool}</TableCell>
-                  <TableCell className="text-muted-foreground">{r.purpose}</TableCell>
+                  <TableCell className="text-sm font-medium text-foreground">{r.layer}</TableCell>
+                  <TableCell className="font-mono text-sm text-muted-foreground">{r.tool}</TableCell>
+                  <TableCell className="text-sm text-muted-foreground">{r.purpose}</TableCell>
                 </TableRow>
               ))}
             </TableBody>
@@ -95,14 +101,14 @@ const Workflow = () => (
       </Card>
 
       {/* n8n Workflow Modules */}
-      <h2 className="mb-4 text-xl font-bold text-foreground">n8n Workflow Modules</h2>
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+      <h2 className="mb-6 text-lg font-semibold text-foreground">n8n Workflow Modules</h2>
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
         {workflowModules.map(m => (
-          <Card key={m.id} className="border-border bg-gradient-card card-hover">
-            <CardContent className="p-5">
-              <Badge variant="outline" className="mb-2 border-border font-mono text-xs text-primary">{m.id}</Badge>
-              <h3 className="mb-1 font-semibold text-foreground">{m.title}</h3>
-              <p className="text-sm text-muted-foreground">{m.desc}</p>
+          <Card key={m.id} className="flex flex-col border-border bg-gradient-card card-hover">
+            <CardContent className="flex flex-1 flex-col p-5">
+              <Badge variant="outline" className="mb-3 w-fit border-border font-mono text-[11px] text-primary">{m.id}</Badge>
+              <h3 className="mb-2 text-sm font-semibold text-foreground">{m.title}</h3>
+              <p className="mt-auto text-xs leading-relaxed text-muted-foreground">{m.desc}</p>
             </CardContent>
           </Card>
         ))}
