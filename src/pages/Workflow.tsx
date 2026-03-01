@@ -4,20 +4,20 @@ import { Badge } from '@/components/ui/badge';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import {
   Upload, Settings, ScanSearch, Layers, FileOutput, ShieldCheck, FileCheck, Monitor,
-  ArrowDown, Cpu, Webhook
+  ArrowRight, ArrowDown, Cpu, Webhook
 } from 'lucide-react';
 
 const pipelineNodes = [
-  { icon: Upload, title: 'Document Upload', subtitle: 'PDF / JPEG → Firebase Storage', color: 'bg-info/20 text-info border-info/30' },
-  { icon: Webhook, title: 'n8n Intake Webhook', subtitle: 'Case created in Firestore', color: 'bg-info/20 text-info border-info/30' },
-  { icon: Settings, title: 'Preprocessing', subtitle: 'Deskew / Contrast Enhancement', color: 'bg-purple-500/20 text-purple-400 border-purple-500/30' },
-  { icon: ScanSearch, title: 'OCR Engine', subtitle: 'Google Vision — en + mr-IN', color: 'bg-purple-500/20 text-purple-400 border-purple-500/30' },
-  { icon: Layers, title: 'Document Classification', subtitle: 'GPT-4o-mini + Template Matching', color: 'bg-primary/20 text-primary border-primary/30' },
-  { icon: FileOutput, title: 'Field Extraction', subtitle: 'LLM structured JSON + confidence', color: 'bg-primary/20 text-primary border-primary/30' },
-  { icon: ShieldCheck, title: 'Rule-Based Validation', subtitle: 'Regex, date, format, cross-field', color: 'bg-success/20 text-success border-success/30' },
-  { icon: Cpu, title: 'Authenticity Heuristics', subtitle: 'Stamp / signature / duplicate / layout', color: 'bg-success/20 text-success border-success/30' },
-  { icon: FileCheck, title: 'Report Assembly', subtitle: 'Firestore case update', color: 'bg-teal/20 text-teal border-teal/30' },
-  { icon: Monitor, title: 'Lovable UI Render', subtitle: 'GET /api/cases/{caseId}', color: 'bg-teal/20 text-teal border-teal/30' },
+  { icon: Upload, title: 'Document Upload', subtitle: 'PDF / JPEG → Firebase Storage', color: 'bg-info/20 text-info' },
+  { icon: Webhook, title: 'n8n Intake Webhook', subtitle: 'Case created in Firestore', color: 'bg-info/20 text-info' },
+  { icon: Settings, title: 'Preprocessing', subtitle: 'Deskew / Contrast Enhancement', color: 'bg-purple-500/20 text-purple-400' },
+  { icon: ScanSearch, title: 'OCR Engine', subtitle: 'Google Vision — en + mr-IN', color: 'bg-purple-500/20 text-purple-400' },
+  { icon: Layers, title: 'Document Classification', subtitle: 'GPT-4o-mini + Template Matching', color: 'bg-primary/20 text-primary' },
+  { icon: FileOutput, title: 'Field Extraction', subtitle: 'LLM structured JSON + confidence', color: 'bg-primary/20 text-primary' },
+  { icon: ShieldCheck, title: 'Rule-Based Validation', subtitle: 'Regex, date, format, cross-field', color: 'bg-success/20 text-success' },
+  { icon: Cpu, title: 'Authenticity Heuristics', subtitle: 'Stamp / signature / duplicate / layout', color: 'bg-success/20 text-success' },
+  { icon: FileCheck, title: 'Report Assembly', subtitle: 'Firestore case update', color: 'bg-teal/20 text-teal' },
+  { icon: Monitor, title: 'Lovable UI Render', subtitle: 'GET /api/cases/{caseId}', color: 'bg-teal/20 text-teal' },
 ];
 
 const techStack = [
@@ -37,6 +37,25 @@ const workflowModules = [
   { id: '05_operator_override', title: 'Operator Override', desc: 'Handles manual edits, decision events, and audit log entries from the operator UI.' },
 ];
 
+// Split into 3 rows: 4, 4, 2
+const pipelineRows = [
+  pipelineNodes.slice(0, 4),
+  pipelineNodes.slice(4, 8),
+  pipelineNodes.slice(8, 10),
+];
+
+const PipelineTile = ({ node }: { node: typeof pipelineNodes[0] }) => (
+  <Card className="flex-1 border border-border bg-card">
+    <CardContent className="flex flex-col items-center gap-2 px-4 py-5 text-center">
+      <div className={`flex h-11 w-11 items-center justify-center rounded-lg ${node.color.split(' ')[0]}`}>
+        <node.icon className={`h-5 w-5 ${node.color.split(' ')[1]}`} />
+      </div>
+      <p className="text-sm font-semibold leading-tight text-foreground">{node.title}</p>
+      <p className="text-[11px] leading-snug text-muted-foreground">{node.subtitle}</p>
+    </CardContent>
+  </Card>
+);
+
 const Workflow = () => (
   <div className="min-h-screen bg-background">
     <AppNavbar />
@@ -47,28 +66,28 @@ const Workflow = () => (
         <p className="mx-auto max-w-2xl text-muted-foreground">End-to-end document verification pipeline — from upload to verified report.</p>
       </div>
 
-      {/* Pipeline */}
+      {/* Pipeline — 3 rows */}
       <h2 className="mb-6 text-lg font-semibold text-foreground">Processing Pipeline</h2>
       <div className="mb-14 flex flex-col items-center gap-0">
-        {pipelineNodes.map((node, i) => (
-          <div key={i} className="flex w-full max-w-lg flex-col items-center">
-            <Card className="w-full border border-border bg-card">
-              <CardContent className="flex items-center gap-4 px-5 py-4">
-                <div className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-lg ${node.color.split(' ')[0]}`}>
-                  <node.icon className={`h-5 w-5 ${node.color.split(' ')[1]}`} />
+        {pipelineRows.map((row, ri) => (
+          <div key={ri} className="flex w-full flex-col items-center">
+            {/* Row of tiles with arrows between them */}
+            <div className="flex w-full items-stretch justify-center gap-0">
+              {row.map((node, ci) => (
+                <div key={ci} className="flex items-center">
+                  {ci > 0 && (
+                    <ArrowRight className="mx-3 h-4 w-4 shrink-0 text-muted-foreground/50" />
+                  )}
+                  <div className="w-[200px]">
+                    <PipelineTile node={node} />
+                  </div>
                 </div>
-                <div className="min-w-0 flex-1">
-                  <p className="truncate text-sm font-semibold text-foreground">{node.title}</p>
-                  <p className="truncate text-xs text-muted-foreground">{node.subtitle}</p>
-                </div>
-                <Badge variant="outline" className="shrink-0 border-border font-mono text-[10px] text-muted-foreground">
-                  Step {String(i + 1).padStart(2, '0')}
-                </Badge>
-              </CardContent>
-            </Card>
-            {i < pipelineNodes.length - 1 && (
-              <div className="flex h-6 items-center justify-center">
-                <ArrowDown className="h-4 w-4 text-muted-foreground/60" />
+              ))}
+            </div>
+            {/* Down arrow between rows */}
+            {ri < pipelineRows.length - 1 && (
+              <div className="flex h-10 items-center justify-center">
+                <ArrowDown className="h-4 w-4 text-muted-foreground/50" />
               </div>
             )}
           </div>
