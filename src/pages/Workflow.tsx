@@ -69,29 +69,33 @@ const Workflow = () => (
       {/* Pipeline — 3 rows */}
       <h2 className="mb-6 text-lg font-semibold text-foreground">Processing Pipeline</h2>
       <div className="mb-14 flex flex-col items-center gap-0">
-        {pipelineRows.map((row, ri) => (
-          <div key={ri} className="flex w-full flex-col items-center">
-            {/* Row of tiles with arrows between them */}
-            <div className="flex w-full items-stretch justify-center gap-0">
-              {row.map((node, ci) => (
-                <div key={ci} className="flex items-center">
-                  {ci > 0 && (
-                    <ArrowRight className="mx-3 h-4 w-4 shrink-0 text-muted-foreground/50" />
-                  )}
-                  <div className="w-[200px]">
-                    <PipelineTile node={node} />
+        {pipelineRows.map((row, ri) => {
+          // Z-pattern: even rows L→R, odd rows R→L
+          const orderedRow = ri % 2 === 1 ? [...row].reverse() : row;
+          const isReversed = ri % 2 === 1;
+          return (
+            <div key={ri} className="flex w-full flex-col items-center">
+              <div className={`flex w-full items-stretch gap-0 ${isReversed ? 'justify-center flex-row-reverse' : 'justify-center'}`}>
+                {orderedRow.map((node, ci) => (
+                  <div key={ci} className="flex items-center">
+                    {ci > 0 && (
+                      <ArrowRight className={`mx-3 h-4 w-4 shrink-0 text-muted-foreground/50 ${isReversed ? 'rotate-180' : ''}`} />
+                    )}
+                    <div className="w-[200px]">
+                      <PipelineTile node={node} />
+                    </div>
                   </div>
-                </div>
-              ))}
-            </div>
-            {/* Down arrow between rows */}
-            {ri < pipelineRows.length - 1 && (
-              <div className="flex h-10 items-center justify-center">
-                <ArrowDown className="h-4 w-4 text-muted-foreground/50" />
+                ))}
               </div>
-            )}
-          </div>
-        ))}
+              {/* Down arrow between rows — aligned to the side where flow ends */}
+              {ri < pipelineRows.length - 1 && (
+                <div className={`flex h-10 w-full items-center ${isReversed ? 'justify-start pl-[100px]' : 'justify-end pr-[100px]'}`}>
+                  <ArrowDown className="h-4 w-4 text-muted-foreground/50" />
+                </div>
+              )}
+            </div>
+          );
+        })}
       </div>
 
       {/* Tech Stack */}
