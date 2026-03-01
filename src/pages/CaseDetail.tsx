@@ -88,9 +88,8 @@ const CaseDetail = () => {
     getCase(caseId).then(c => {
       if (c) {
         setApiCase(c);
-      } else {
-        setNotFound(true);
       }
+      // If null, fall through to mock data
     }).catch(() => {
       // Firestore error — fall back to mock
     }).finally(() => setLoading(false));
