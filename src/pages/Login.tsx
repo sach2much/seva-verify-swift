@@ -29,6 +29,7 @@ const Login = () => {
 
     setLoading(true);
     try {
+      if (!auth) throw new Error('Firebase not configured');
       await signInWithEmailAndPassword(auth, email, password);
       navigate('/dashboard');
     } catch {

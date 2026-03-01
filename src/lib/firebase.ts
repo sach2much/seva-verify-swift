@@ -1,18 +1,36 @@
-import { initializeApp } from 'firebase/app';
-import { getFirestore } from 'firebase/firestore';
-import { getStorage } from 'firebase/storage';
-import { getAuth } from 'firebase/auth';
+import { initializeApp, type FirebaseApp } from 'firebase/app';
+import { getFirestore, type Firestore } from 'firebase/firestore';
+import { getStorage, type FirebaseStorage } from 'firebase/storage';
+import { getAuth, type Auth } from 'firebase/auth';
 import { ENV } from '@/config/env';
 
-const firebaseConfig = {
-  apiKey: ENV.FIREBASE_API_KEY,
-  authDomain: ENV.FIREBASE_AUTH_DOMAIN,
-  projectId: ENV.FIREBASE_PROJECT_ID,
-  storageBucket: ENV.FIREBASE_STORAGE_BUCKET,
-};
+let app: FirebaseApp | null = null;
+let db: Firestore | null = null;
+let storage: FirebaseStorage | null = null;
+let auth: Auth | null = null;
 
-const app = initializeApp(firebaseConfig);
-export const db = getFirestore(app);
-export const storage = getStorage(app);
-export const auth = getAuth(app);
-export default app;
+function isFirebaseConfigured(): boolean {
+  return Boolean(ENV.FIREBASE_API_KEY);
+}
+
+function initFirebase() {
+  if (app) return;
+  if (!isFirebaseConfigured()) return;
+
+  const firebaseConfig = {
+    apiKey: ENV.FIREBASE_API_KEY,
+    authDomain: ENV.FIREBASE_AUTH_DOMAIN,
+    projectId: ENV.FIREBASE_PROJECT_ID,
+    storageBucket: ENV.FIREBASE_STORAGE_BUCKET,
+  };
+
+  app = initializeApp(firebaseConfig);
+  db = getFirestore(app);
+  storage = getStorage(app);
+  auth = getAuth(app);
+}
+
+// Try to init immediately if configured
+initFirebase();
+
+export { app, db, storage, auth, isFirebaseConfigured };
