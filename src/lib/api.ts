@@ -70,6 +70,7 @@ export async function uploadDocument(file: File, languageHint: string, docType: 
 
 // ---- GET ALL CASES from Firestore ----
 export async function getCases(): Promise<Case[]> {
+  if (!db) return [];
   const q = query(collection(db, 'cases'), orderBy('createdAt', 'desc'), limit(50));
   const snapshot = await getDocs(q);
   return snapshot.docs.map(d => ({ caseId: d.id, ...d.data() } as Case));
@@ -77,6 +78,7 @@ export async function getCases(): Promise<Case[]> {
 
 // ---- GET SINGLE CASE ----
 export async function getCase(caseId: string): Promise<Case | null> {
+  if (!db) return null;
   const docRef = doc(db, 'cases', caseId);
   const docSnap = await getDoc(docRef);
   if (!docSnap.exists()) return null;
@@ -85,6 +87,10 @@ export async function getCase(caseId: string): Promise<Case | null> {
 
 // ---- REAL-TIME CASE LISTENER ----
 export function subscribeToCases(callback: (cases: Case[]) => void) {
+  if (!db) {
+    callback([]);
+    return () => {};
+  }
   const q = query(collection(db, 'cases'), orderBy('createdAt', 'desc'), limit(50));
   return onSnapshot(q, (snapshot) => {
     const cases = snapshot.docs.map(d => ({ caseId: d.id, ...d.data() } as Case));

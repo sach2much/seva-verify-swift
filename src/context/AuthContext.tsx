@@ -17,6 +17,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    if (!auth) {
+      setLoading(false);
+      return;
+    }
     return onAuthStateChanged(auth, (u) => {
       setUser(u);
       if (u) {
@@ -29,7 +33,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const logout = async () => {
-    await signOut(auth);
+    if (auth) await signOut(auth);
   };
 
   return <AuthContext.Provider value={{ user, role, loading, logout }}>{children}</AuthContext.Provider>;
