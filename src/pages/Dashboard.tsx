@@ -9,13 +9,16 @@ import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Plus, Search, FileCheck, Clock, CheckCircle, XCircle, Eye } from 'lucide-react';
+import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip } from 'recharts';
 
 const stats = [
-  { icon: FileCheck, label: 'Total Cases', value: '1,247', color: 'text-info' },
-  { icon: Clock, label: 'Pending Review', value: '23', color: 'text-warning' },
-  { icon: CheckCircle, label: 'Approved Today', value: '18', color: 'text-success' },
-  { icon: XCircle, label: 'Rejected Today', value: '3', color: 'text-destructive' },
+  { icon: FileCheck, label: 'Total Cases', value: '1,247', numValue: 1247, color: 'text-info', chartColor: 'hsl(210, 100%, 56%)' },
+  { icon: Clock, label: 'Pending Review', value: '23', numValue: 23, color: 'text-warning', chartColor: 'hsl(38, 92%, 50%)' },
+  { icon: CheckCircle, label: 'Approved Today', value: '18', numValue: 18, color: 'text-success', chartColor: 'hsl(142, 71%, 45%)' },
+  { icon: XCircle, label: 'Rejected Today', value: '3', numValue: 3, color: 'text-destructive', chartColor: 'hsl(0, 84%, 60%)' },
 ];
+
+const donutData = stats.map(s => ({ name: s.label, value: s.numValue, color: s.chartColor }));
 
 const Dashboard = () => {
   const [search, setSearch] = useState('');
@@ -40,21 +43,64 @@ const Dashboard = () => {
           </Link>
         </div>
 
-        {/* Stats */}
-        <div className="mb-6 grid grid-cols-2 gap-4 lg:grid-cols-4">
-          {stats.map((s, i) => (
-            <Card key={i} className="border-border bg-card">
-              <CardContent className="flex items-center gap-4 p-4">
-                <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-secondary">
-                  <s.icon className={`h-5 w-5 ${s.color}`} />
-                </div>
-                <div>
-                  <p className="text-2xl font-bold text-foreground">{s.value}</p>
-                  <p className="text-xs text-muted-foreground">{s.label}</p>
-                </div>
-              </CardContent>
-            </Card>
-          ))}
+        {/* Stats + Donut */}
+        <div className="mb-6 grid grid-cols-1 gap-6 lg:grid-cols-3">
+          <div className="grid grid-cols-2 gap-4 lg:col-span-2">
+            {stats.map((s, i) => (
+              <Card key={i} className="border-border bg-card">
+                <CardContent className="flex items-center gap-4 p-4">
+                  <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-secondary">
+                    <s.icon className={`h-5 w-5 ${s.color}`} />
+                  </div>
+                  <div>
+                    <p className="text-2xl font-bold text-foreground">{s.value}</p>
+                    <p className="text-xs text-muted-foreground">{s.label}</p>
+                  </div>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+          <Card className="border-border bg-card">
+            <CardContent className="flex flex-col items-center justify-center p-4">
+              <p className="mb-2 text-sm font-semibold text-foreground">Case Distribution</p>
+              <div className="h-[180px] w-full">
+                <ResponsiveContainer width="100%" height="100%">
+                  <PieChart>
+                    <Pie
+                      data={donutData}
+                      cx="50%"
+                      cy="50%"
+                      innerRadius={45}
+                      outerRadius={75}
+                      dataKey="value"
+                      strokeWidth={0}
+                    >
+                      {donutData.map((entry, index) => (
+                        <Cell key={index} fill={entry.color} />
+                      ))}
+                    </Pie>
+                    <Tooltip
+                      contentStyle={{
+                        backgroundColor: 'hsl(216, 50%, 13%)',
+                        border: '1px solid hsl(216, 30%, 22%)',
+                        borderRadius: '8px',
+                        color: 'hsl(0, 0%, 95%)',
+                        fontSize: '12px',
+                      }}
+                    />
+                  </PieChart>
+                </ResponsiveContainer>
+              </div>
+              <div className="mt-2 flex flex-wrap justify-center gap-3">
+                {donutData.map((d, i) => (
+                  <div key={i} className="flex items-center gap-1.5">
+                    <div className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: d.color }} />
+                    <span className="text-[10px] text-muted-foreground">{d.name}</span>
+                  </div>
+                ))}
+              </div>
+            </CardContent>
+          </Card>
         </div>
 
         {/* Filters */}
