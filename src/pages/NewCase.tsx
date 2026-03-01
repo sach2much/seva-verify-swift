@@ -5,7 +5,9 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Label } from '@/components/ui/label';
-import { Upload, FileText, Image, CheckCircle, Loader2 } from 'lucide-react';
+import { Upload, FileText, Image, CheckCircle, Loader2, X } from 'lucide-react';
+import { uploadDocument } from '@/lib/api';
+import { toast } from 'sonner';
 
 const processingSteps = ['Digitization', 'Classification', 'Field Extraction', 'Validation & Authenticity'];
 
@@ -15,6 +17,8 @@ const NewCase = () => {
   const [dragging, setDragging] = useState(false);
   const [processing, setProcessing] = useState(false);
   const [currentStep, setCurrentStep] = useState(-1);
+  const [languageHint, setLanguageHint] = useState('auto');
+  const [docType, setDocType] = useState('auto');
 
   const handleDrop = (e: React.DragEvent) => {
     e.preventDefault();
@@ -23,19 +27,50 @@ const NewCase = () => {
     if (f) setFile(f);
   };
 
-  const handleSubmit = () => {
+  const formatFileSize = (bytes: number) => {
+    if (bytes < 1024) return bytes + ' B';
+    if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + ' KB';
+    return (bytes / (1024 * 1024)).toFixed(1) + ' MB';
+  };
+
+  const handleSubmit = async () => {
+    if (!file) return;
+
+    // Validate file type
+    const validTypes = ['application/pdf', 'image/jpeg', 'image/jpg', 'image/png'];
+    if (!validTypes.includes(file.type)) {
+      toast.error('Invalid file type. Please upload a PDF or JPEG file.');
+      return;
+    }
+
+    // Validate file size (10MB max)
+    if (file.size > 10 * 1024 * 1024) {
+      toast.error('File too large. Maximum size is 10MB.');
+      return;
+    }
+
     setProcessing(true);
     setCurrentStep(0);
-    let step = 0;
-    const interval = setInterval(() => {
-      step++;
-      if (step >= processingSteps.length) {
-        clearInterval(interval);
-        setTimeout(() => navigate('/case/DVR-2026-00142'), 800);
-      } else {
-        setCurrentStep(step);
-      }
-    }, 1200);
+
+    try {
+      const result = await uploadDocument(file, languageHint, docType);
+
+      // Animate stepper through remaining steps
+      let step = 0;
+      const interval = setInterval(() => {
+        step++;
+        if (step >= processingSteps.length) {
+          clearInterval(interval);
+          setTimeout(() => navigate(`/case/${result.caseId}`), 800);
+        } else {
+          setCurrentStep(step);
+        }
+      }, 1500);
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'Upload failed. Please try again.');
+      setProcessing(false);
+      setCurrentStep(-1);
+    }
   };
 
   return (
@@ -58,7 +93,12 @@ const NewCase = () => {
                   <input type="file" accept=".pdf,.jpg,.jpeg,.png" className="hidden" onChange={e => e.target.files?.[0] && setFile(e.target.files[0])} />
                   <Upload className="mx-auto mb-4 h-12 w-12 text-muted-foreground" />
                   {file ? (
-                    <p className="text-foreground font-medium">{file.name}</p>
+                    <div className="flex items-center gap-2">
+                      <div>
+                        <p className="text-foreground font-medium">{file.name}</p>
+                        <p className="text-sm text-muted-foreground">{formatFileSize(file.size)}</p>
+                      </div>
+                    </div>
                   ) : (
                     <>
                       <p className="mb-2 text-foreground font-medium">Drop PDF or JPEG here or click to browse</p>
@@ -74,6 +114,11 @@ const NewCase = () => {
                     </div>
                   </div>
                 </label>
+                {file && (
+                  <Button variant="ghost" size="sm" className="mt-3 text-muted-foreground hover:text-destructive" onClick={(e) => { e.preventDefault(); setFile(null); }}>
+                    <X className="mr-1 h-4 w-4" /> Remove file
+                  </Button>
+                )}
               </CardContent>
             </Card>
 
@@ -81,7 +126,7 @@ const NewCase = () => {
             <div className="grid gap-4 sm:grid-cols-2">
               <div className="space-y-2">
                 <Label>Language Hint</Label>
-                <Select defaultValue="auto">
+                <Select value={languageHint} onValueChange={setLanguageHint}>
                   <SelectTrigger><SelectValue /></SelectTrigger>
                   <SelectContent>
                     <SelectItem value="auto">Auto-detect</SelectItem>
@@ -92,7 +137,7 @@ const NewCase = () => {
               </div>
               <div className="space-y-2">
                 <Label>Document Type</Label>
-                <Select defaultValue="auto">
+                <Select value={docType} onValueChange={setDocType}>
                   <SelectTrigger><SelectValue /></SelectTrigger>
                   <SelectContent>
                     <SelectItem value="auto">Auto-detect</SelectItem>
