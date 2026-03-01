@@ -1,6 +1,6 @@
 import { ENV } from '@/config/env';
 import { db } from '@/lib/firebase';
-import { collection, doc, getDoc, getDocs, query, orderBy, limit, onSnapshot } from 'firebase/firestore';
+import { collection, doc, getDoc, getDocs, query, orderBy, limit, onSnapshot, updateDoc } from 'firebase/firestore';
 
 // ---- CASE TYPES ----
 export interface ExtractedField {
@@ -122,22 +122,17 @@ export function subscribeToCases(callback: (cases: Case[]) => void, onError?: (e
 
 // ---- SAVE FIELD EDITS ----
 export async function saveFieldEdits(caseId: string, editedFields: ExtractedField[], editorEmail: string): Promise<void> {
-  const response = await fetch(`${ENV.N8N_BASE_URL}/cases/${caseId}/fields`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ caseId, editedFields, editorEmail, editedAt: new Date().toISOString() }),
-  });
-  if (!response.ok) throw new Error('Failed to save field edits');
+  if (!db) return;
+  await updateDoc(doc(db, 'cases', caseId), { extractedFields: editedFields, updatedAt: new Date().toISOString() });
 }
 
 // ---- SUPERVISOR DECISION ----
 export async function submitDecision(caseId: string, decision: 'APPROVED' | 'REJECTED', reasonCodes: string[], decidedBy: string): Promise<void> {
-  const response = await fetch(`${ENV.N8N_BASE_URL}/cases/${caseId}/decision`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ caseId, decision, reasonCodes, decidedBy, decidedAt: new Date().toISOString() }),
+  if (!db) return;
+  await updateDoc(doc(db, 'cases', caseId), {
+    status: decision,
+    decision: { status: decision, decidedBy, decidedAt: new Date().toISOString(), reasonCodes },
   });
-  if (!response.ok) throw new Error('Failed to submit decision');
 }
 
 // ---- POLL CASE STATUS (fallback if no realtime) ----
