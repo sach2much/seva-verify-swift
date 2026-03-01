@@ -1,7 +1,7 @@
 import { Shield } from 'lucide-react';
 
 const Footer = () => (
-  <footer id="contact" className="border-t border-border bg-navy-deep py-12">
+  <footer className="border-t border-border bg-navy-deep py-12">
     <div className="container mx-auto px-4">
       <div className="flex flex-col items-center justify-between gap-6 md:flex-row">
         <div className="flex items-center gap-2">
@@ -17,7 +17,10 @@ const Footer = () => (
           <a href="#integrations" className="hover:text-foreground">API Docs</a>
           <a href="#contact" className="hover:text-foreground">Contact</a>
         </div>
-        <p className="text-xs text-muted-foreground">© 2026 DocVerify India. All rights reserved.</p>
+        <div className="text-center md:text-right">
+          <p className="text-xs text-muted-foreground">© 2026 DocVerify India. All rights reserved.</p>
+          <p className="text-xs text-muted-foreground">A MeitY Initiative · support@docverify.gov.in</p>
+        </div>
       </div>
     </div>
   </footer>

@@ -7,7 +7,7 @@ import { Link } from 'react-router-dom';
 import {
   Shield, ScanSearch, FileCheck, Layers, Stamp, AlertTriangle, ScrollText,
   Upload, Cpu, FileOutput, ClipboardCheck, ArrowRight, Zap, Globe, FileText,
-  CreditCard, Car, UtensilsCrossed, Baby
+  CreditCard, Car, UtensilsCrossed, Baby, Phone, Mail, MapPin
 } from 'lucide-react';
 
 const features = [
@@ -189,6 +189,51 @@ const Index = () => {
 }`}
               </pre>
             </div>
+          </div>
+        </div>
+      </section>
+
+      {/* Contact */}
+      <section id="contact" className="py-20">
+        <div className="container mx-auto px-4">
+          <div className="mb-12 text-center">
+            <h2 className="mb-3 text-3xl font-bold text-foreground">Contact Us</h2>
+            <p className="text-muted-foreground">Reach out to the DocVerify India team for support, onboarding or integration queries.</p>
+          </div>
+          <div className="mx-auto grid max-w-4xl gap-8 md:grid-cols-3">
+            <Card className="border-border bg-gradient-card text-center">
+              <CardContent className="p-6">
+                <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-xl bg-primary/10">
+                  <Phone className="h-6 w-6 text-primary" />
+                </div>
+                <h3 className="mb-1 text-sm font-semibold text-foreground">National Helpline</h3>
+                <p className="text-lg font-bold text-primary">1800-309-DOCV</p>
+                <p className="mt-1 text-xs text-muted-foreground">Toll-free · Mon–Sat · 9 AM – 6 PM IST</p>
+              </CardContent>
+            </Card>
+            <Card className="border-border bg-gradient-card text-center">
+              <CardContent className="p-6">
+                <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-xl bg-primary/10">
+                  <Mail className="h-6 w-6 text-primary" />
+                </div>
+                <h3 className="mb-1 text-sm font-semibold text-foreground">Official Email</h3>
+                <p className="text-sm font-bold text-primary">support@docverify.gov.in</p>
+                <p className="mt-2 text-xs text-muted-foreground">For technical support &amp; API onboarding</p>
+                <p className="mt-1 text-sm font-bold text-primary">grievance@docverify.gov.in</p>
+                <p className="text-xs text-muted-foreground">For escalations &amp; grievance redressal</p>
+              </CardContent>
+            </Card>
+            <Card className="border-border bg-gradient-card text-center">
+              <CardContent className="p-6">
+                <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-xl bg-primary/10">
+                  <MapPin className="h-6 w-6 text-primary" />
+                </div>
+                <h3 className="mb-1 text-sm font-semibold text-foreground">Head Office</h3>
+                <p className="text-sm text-muted-foreground">Ministry of Electronics &amp; IT</p>
+                <p className="text-sm text-muted-foreground">Electronics Niketan, CGO Complex</p>
+                <p className="text-sm text-muted-foreground">New Delhi — 110003</p>
+              </CardContent>
+            </Card>
           </div>
         </div>
       </section>
