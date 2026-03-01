@@ -46,6 +46,8 @@ const pipelineRows: { nodes: typeof pipelineNodes; direction: 'ltr' | 'rtl' }[] 
 
 const TILE_W = 200;
 const GAP = 40; // arrow gap between tiles
+const ELBOW_OUT = 30; // how far the elbow extends outside the row
+const ELBOW_GAP = 40; // vertical gap between rows for the elbow
 
 const PipelineTile = ({ node }: { node: typeof pipelineNodes[0] }) => (
   <Card className="border border-border bg-card" style={{ width: TILE_W }}>
@@ -118,45 +120,41 @@ const Workflow = () => (
                   </div>
                 ))}
               </div>
-              {/* Elbow connector: from right-center of node 4, out right, down, then left into right-center of node 5 */}
+              {/* Elbow connector row 1→2: right side */}
               {ri === 0 && (
-                <div className="relative" style={{ width: totalWidth, height: 48 }}>
+                <div className="relative" style={{ width: totalWidth, height: ELBOW_GAP }}>
                   <svg
-                    className="absolute text-muted-foreground/40"
-                    style={{ top: -60, right: -40, width: 40, height: 48 + 120 }}
-                    viewBox="0 0 40 168"
-                    fill="none"
+                    className="absolute overflow-visible text-muted-foreground/40"
+                    style={{ top: 0, left: 0, width: '100%', height: '100%' }}
                     preserveAspectRatio="none"
                   >
-                    {/* Horizontal line going right from node 4 right edge */}
-                    <line x1="0" y1="60" x2="24" y2="60" stroke="currentColor" strokeWidth="2" />
-                    {/* Vertical line going down */}
-                    <line x1="24" y1="60" x2="24" y2="108" stroke="currentColor" strokeWidth="2" />
-                    {/* Horizontal line going left into node 5 */}
-                    <line x1="24" y1="108" x2="4" y2="108" stroke="currentColor" strokeWidth="2" />
+                    {/* Start: right edge of row, vertically centered → goes right */}
+                    <line x1={totalWidth} y1="0" x2={totalWidth + ELBOW_OUT} y2="0" stroke="currentColor" strokeWidth="2" />
+                    {/* Down */}
+                    <line x1={totalWidth + ELBOW_OUT} y1="0" x2={totalWidth + ELBOW_OUT} y2={ELBOW_GAP} stroke="currentColor" strokeWidth="2" />
+                    {/* Left into next row's right edge */}
+                    <line x1={totalWidth + ELBOW_OUT} y1={ELBOW_GAP} x2={totalWidth} y2={ELBOW_GAP} stroke="currentColor" strokeWidth="2" />
                     {/* Arrowhead pointing left */}
-                    <polygon points="8,104 8,112 0,108" fill="currentColor" />
+                    <polygon points={`${totalWidth + 6},${ELBOW_GAP - 4} ${totalWidth + 6},${ELBOW_GAP + 4} ${totalWidth},${ELBOW_GAP}`} fill="currentColor" />
                   </svg>
                 </div>
               )}
-              {/* Elbow connector: from left-center of node 8, out left, down, then right into left-center of node 9 */}
+              {/* Elbow connector row 2→3: left side */}
               {ri === 1 && (
-                <div className="relative" style={{ width: totalWidth, height: 48 }}>
+                <div className="relative" style={{ width: totalWidth, height: ELBOW_GAP }}>
                   <svg
-                    className="absolute text-muted-foreground/40"
-                    style={{ top: -60, left: -40, width: 40, height: 48 + 120 }}
-                    viewBox="0 0 40 168"
-                    fill="none"
+                    className="absolute overflow-visible text-muted-foreground/40"
+                    style={{ top: 0, left: 0, width: '100%', height: '100%' }}
                     preserveAspectRatio="none"
                   >
-                    {/* Horizontal line going left from node 8 left edge */}
-                    <line x1="40" y1="60" x2="16" y2="60" stroke="currentColor" strokeWidth="2" />
-                    {/* Vertical line going down */}
-                    <line x1="16" y1="60" x2="16" y2="108" stroke="currentColor" strokeWidth="2" />
-                    {/* Horizontal line going right into node 9 */}
-                    <line x1="16" y1="108" x2="36" y2="108" stroke="currentColor" strokeWidth="2" />
+                    {/* Start: left edge of row → goes left */}
+                    <line x1={0} y1="0" x2={-ELBOW_OUT} y2="0" stroke="currentColor" strokeWidth="2" />
+                    {/* Down */}
+                    <line x1={-ELBOW_OUT} y1="0" x2={-ELBOW_OUT} y2={ELBOW_GAP} stroke="currentColor" strokeWidth="2" />
+                    {/* Right into next row's left edge */}
+                    <line x1={-ELBOW_OUT} y1={ELBOW_GAP} x2={0} y2={ELBOW_GAP} stroke="currentColor" strokeWidth="2" />
                     {/* Arrowhead pointing right */}
-                    <polygon points="32,104 32,112 40,108" fill="currentColor" />
+                    <polygon points={`${-6},${ELBOW_GAP - 4} ${-6},${ELBOW_GAP + 4} ${0},${ELBOW_GAP}`} fill="currentColor" />
                   </svg>
                 </div>
               )}
