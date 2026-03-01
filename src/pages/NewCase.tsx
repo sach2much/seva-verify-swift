@@ -67,7 +67,9 @@ const NewCase = () => {
         }
       }, 1500);
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : 'Upload failed. Please try again.');
+      const message = error instanceof Error ? error.message : 'Upload failed. Please try again.';
+      console.error('Upload error:', message);
+      toast.error(message, { duration: 8000 });
       setProcessing(false);
       setCurrentStep(-1);
     }

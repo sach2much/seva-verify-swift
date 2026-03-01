@@ -65,7 +65,23 @@ export async function uploadDocument(file: File, languageHint: string, docType: 
     throw new Error(`Upload failed: ${response.status} ${response.statusText}`);
   }
 
-  return response.json();
+  const text = await response.text();
+  if (!text) {
+    throw new Error('Server returned an empty response. The webhook may not be configured correctly.');
+  }
+
+  let data: { caseId?: string; status?: string };
+  try {
+    data = JSON.parse(text);
+  } catch {
+    throw new Error(`Server returned invalid JSON: ${text.substring(0, 200)}`);
+  }
+
+  if (!data.caseId) {
+    throw new Error(`Server response missing caseId. Response: ${JSON.stringify(data).substring(0, 200)}`);
+  }
+
+  return data as { caseId: string; status: string };
 }
 
 // ---- GET ALL CASES from Firestore ----
