@@ -93,11 +93,11 @@ const Workflow = () => (
 
       {/* Pipeline — 3 rows, Z-pattern */}
       <h2 className="mb-6 text-lg font-semibold text-foreground">Processing Pipeline</h2>
-      <div className="mb-14 flex flex-col items-center gap-6">
+      <div className="mb-14 flex flex-col items-center gap-0">
         {pipelineRows.map((row, ri) => {
           const isRtl = row.direction === 'rtl';
-          // For RTL rows, reverse the array so visually it reads right-to-left
           const displayNodes = isRtl ? [...row.nodes].reverse() : row.nodes;
+          const totalWidth = displayNodes.length * TILE_W + (displayNodes.length - 1) * GAP;
           return (
             <div key={ri} className="flex flex-col items-center">
               {/* Row of tiles */}
@@ -118,6 +118,23 @@ const Workflow = () => (
                   </div>
                 ))}
               </div>
+              {/* Elbow connector between row 1→2: right side, like the drawing */}
+              {ri === 0 && (
+                <div className="flex justify-end" style={{ width: totalWidth }}>
+                  <svg width="60" height="56" viewBox="0 0 60 56" fill="none" className="text-muted-foreground/40">
+                    {/* Horizontal line from node 4 center-bottom going right */}
+                    <line x1="0" y1="2" x2="58" y2="2" stroke="currentColor" strokeWidth="2" />
+                    {/* Vertical line going down */}
+                    <line x1="58" y1="2" x2="58" y2="54" stroke="currentColor" strokeWidth="2" />
+                    {/* Horizontal line going left with arrowhead */}
+                    <line x1="58" y1="54" x2="8" y2="54" stroke="currentColor" strokeWidth="2" />
+                    {/* Arrowhead pointing left */}
+                    <polygon points="12,50 12,58 4,54" fill="currentColor" />
+                  </svg>
+                </div>
+              )}
+              {/* Spacing between other rows */}
+              {ri === 1 && ri < pipelineRows.length - 1 && <div className="h-6" />}
             </div>
           );
         })}
