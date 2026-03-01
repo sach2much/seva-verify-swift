@@ -18,10 +18,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     if (!auth) {
+      // No Firebase configured — treat as demo mode (authenticated)
+      setUser(null);
+      setRole('Operator');
       setLoading(false);
       return;
     }
-    return onAuthStateChanged(auth, (u) => {
+    const unsubscribe = onAuthStateChanged(auth, (u) => {
       setUser(u);
       if (u) {
         setRole(u.email?.includes('supervisor') ? 'Supervisor' : 'Operator');
@@ -30,6 +33,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       }
       setLoading(false);
     });
+    return unsubscribe;
   }, []);
 
   const logout = async () => {
