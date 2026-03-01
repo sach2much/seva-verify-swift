@@ -56,7 +56,7 @@ export async function uploadDocument(file: File, languageHint: string, docType: 
   formData.append('docType', docType);
   formData.append('uploadedAt', new Date().toISOString());
 
-  const response = await fetch(`${ENV.N8N_BASE_URL}/upload`, {
+  const response = await fetch(ENV.N8N_BASE_URL, {
     method: 'POST',
     body: formData,
   });
