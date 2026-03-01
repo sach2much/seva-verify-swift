@@ -118,22 +118,6 @@ const Workflow = () => (
                   </div>
                 ))}
               </div>
-              {/* Elbow connector to next row (skip between row 1 and row 2) */}
-              {ri < pipelineRows.length - 1 && ri !== 0 && (
-                <div
-                  className={`flex ${isRtl ? 'justify-start' : 'justify-end'}`}
-                  style={{ width: displayNodes.length * TILE_W + (displayNodes.length - 1) * GAP }}
-                >
-                  <div className="flex flex-col" style={{ width: TILE_W / 2 }}>
-                    <div className={`h-4 ${isRtl ? 'border-l-2' : 'border-r-2'} border-muted-foreground/30`} />
-                    <div className={`h-3 ${isRtl ? 'border-l-2 border-b-2 rounded-bl-lg' : 'border-r-2 border-b-2 rounded-br-lg'} border-muted-foreground/30`} />
-                    <div className={`h-3 ${isRtl ? 'border-l-2 border-t-2 rounded-tl-lg' : 'border-r-2 border-t-2 rounded-tr-lg'} border-muted-foreground/30`} />
-                    <div className={`h-4 ${isRtl ? 'border-l-2' : 'border-r-2'} border-muted-foreground/30 relative`}>
-                      <ArrowDown className={`absolute bottom-[-8px] h-4 w-4 text-muted-foreground/50 ${isRtl ? 'left-[-8px]' : 'right-[-8px]'}`} />
-                    </div>
-                  </div>
-                </div>
-              )}
             </div>
           );
         })}
