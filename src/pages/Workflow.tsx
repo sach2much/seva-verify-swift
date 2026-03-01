@@ -93,7 +93,7 @@ const Workflow = () => (
 
       {/* Pipeline — 3 rows, Z-pattern */}
       <h2 className="mb-6 text-lg font-semibold text-foreground">Processing Pipeline</h2>
-      <div className="mb-14 flex flex-col items-center gap-0">
+      <div className="mb-14 flex flex-col items-center gap-6">
         {pipelineRows.map((row, ri) => {
           const isRtl = row.direction === 'rtl';
           // For RTL rows, reverse the array so visually it reads right-to-left
