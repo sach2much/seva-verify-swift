@@ -55,6 +55,30 @@ const PipelineTile = ({ node }: { node: typeof pipelineNodes[0] }) => (
     </CardContent>
   </Card>
 );
+/* Elbow connector: ┐ then │ then └  (or mirrored) with 90° corners */
+const ElbowConnector = ({ side }: { side: 'right' | 'left' }) => {
+  const isRight = side === 'right';
+  return (
+    <div className={`flex w-full ${isRight ? 'justify-end pr-[88px]' : 'justify-start pl-[88px]'}`}>
+      <div className="flex flex-col items-stretch" style={{ width: 28 }}>
+        {/* Top horizontal + corner */}
+        <div
+          className={`h-4 border-muted-foreground/40 ${
+            isRight ? 'border-r-2 border-t-2 rounded-tr' : 'border-l-2 border-t-2 rounded-tl'
+          }`}
+        />
+        {/* Vertical middle */}
+        <div className={`h-5 border-muted-foreground/40 ${isRight ? 'border-r-2' : 'border-l-2'}`} />
+        {/* Bottom corner + horizontal */}
+        <div
+          className={`h-4 border-muted-foreground/40 ${
+            isRight ? 'border-r-2 border-b-2 rounded-br' : 'border-l-2 border-b-2 rounded-bl'
+          }`}
+        />
+      </div>
+    </div>
+  );
+};
 
 const Workflow = () => (
   <div className="min-h-screen bg-background">
@@ -66,13 +90,12 @@ const Workflow = () => (
         <p className="mx-auto max-w-2xl text-muted-foreground">End-to-end document verification pipeline — from upload to verified report.</p>
       </div>
 
-      {/* Pipeline — 3 rows */}
+      {/* Pipeline — 3 rows, Z-pattern */}
       <h2 className="mb-6 text-lg font-semibold text-foreground">Processing Pipeline</h2>
       <div className="mb-14 flex flex-col items-center gap-0">
         {pipelineRows.map((row, ri) => {
-          // Z-pattern: even rows L→R, odd rows R→L
-          const orderedRow = ri % 2 === 1 ? [...row].reverse() : row;
           const isReversed = ri % 2 === 1;
+          const orderedRow = isReversed ? [...row].reverse() : row;
           return (
             <div key={ri} className="flex w-full flex-col items-center">
               <div className={`flex w-full items-stretch gap-0 ${isReversed ? 'justify-center flex-row-reverse' : 'justify-center'}`}>
@@ -87,11 +110,9 @@ const Workflow = () => (
                   </div>
                 ))}
               </div>
-              {/* Down arrow between rows — aligned to the side where flow ends */}
+              {/* Elbow connector between rows */}
               {ri < pipelineRows.length - 1 && (
-                <div className={`flex h-10 w-full items-center ${isReversed ? 'justify-start pl-[100px]' : 'justify-end pr-[100px]'}`}>
-                  <ArrowDown className="h-4 w-4 text-muted-foreground/50" />
-                </div>
+                <ElbowConnector side={isReversed ? 'left' : 'right'} />
               )}
             </div>
           );
