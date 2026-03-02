@@ -13,7 +13,7 @@ import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
 import {
   ChevronRight, Download, CheckCircle, AlertTriangle, XCircle,
-  Upload as UploadIcon, ScanSearch, Layers, FileOutput, ShieldCheck, Pencil, Clock, ChevronDown, ArrowLeft
+  Upload as UploadIcon, ScanSearch, Layers, FileOutput, ShieldCheck, Pencil, Clock, ChevronDown, ArrowLeft, Loader2
 } from 'lucide-react';
 import { toast } from 'sonner';
 
@@ -109,26 +109,40 @@ const CaseDetail = () => {
     createdAt: apiCase.createdAt,
   } : { ...mockCase, status: localStatus || mockCase.status };
 
-  const fields = apiCase?.extractedFields?.map(f => ({
-    name: f.label,
-    value: f.value,
-    confidence: f.confidenceBand,
-    evidence: f.evidence?.snippet || '',
-  })) ?? sampleFields;
+  const isDemoMode = !isFirebaseConfigured;
 
-  const validations = apiCase?.validations?.map(v => ({
-    ruleId: v.ruleId,
-    severity: v.severity as 'PASS' | 'WARN' | 'FAIL',
-    message: v.message,
-    explain: v.explain,
-  })) ?? validationResults;
+  const fields = isDemoMode
+    ? sampleFields
+    : apiCase?.extractedFields?.length
+      ? apiCase.extractedFields.map(f => ({
+          name: f.label,
+          value: f.value,
+          confidence: f.confidenceBand,
+          evidence: f.evidence?.snippet || '',
+        }))
+      : null; // null = real case but no fields yet
 
-  const timeline = apiCase?.auditTrail?.map(e => ({
-    event: e.eventType,
-    timestamp: e.timestamp,
-    actor: e.actor,
-    description: e.description,
-  })) ?? auditTimeline;
+  const validations = isDemoMode
+    ? validationResults
+    : apiCase?.validations?.length
+      ? apiCase.validations.map(v => ({
+          ruleId: v.ruleId,
+          severity: v.severity as 'PASS' | 'WARN' | 'FAIL',
+          message: v.message,
+          explain: v.explain,
+        }))
+      : null;
+
+  const timeline = isDemoMode
+    ? auditTimeline
+    : apiCase?.auditTrail?.length
+      ? apiCase.auditTrail.map(e => ({
+          event: e.eventType,
+          timestamp: e.timestamp,
+          actor: e.actor,
+          description: e.description,
+        }))
+      : null;
 
   const userEmail = user?.email || 'demo@sevakendra.gov.in';
   const isUsingMockData = !apiCase;
@@ -227,37 +241,46 @@ const CaseDetail = () => {
                 <CardTitle className="text-base text-foreground">Extracted Fields</CardTitle>
               </CardHeader>
               <CardContent>
-                <div className="overflow-x-auto">
-                  <table className="w-full text-sm">
-                    <thead>
-                      <tr className="border-b border-border text-left text-muted-foreground">
-                        <th className="pb-2 font-medium">Field</th>
-                        <th className="pb-2 font-medium">Value</th>
-                        <th className="pb-2 font-medium">Confidence</th>
-                        <th className="pb-2 font-medium hidden md:table-cell">Evidence</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {fields.map((f, i) => (
-                        <tr key={i} className="border-b border-border/50">
-                          <td className="py-2.5 text-muted-foreground">{f.name}</td>
-                          <td className="py-2.5">
-                            <Input
-                              defaultValue={f.value}
-                              ref={el => { if (apiCase?.extractedFields?.[i]) fieldRefs.current[apiCase.extractedFields[i].key] = el; }}
-                              className="h-8 max-w-[200px] bg-secondary text-foreground"
-                            />
-                          </td>
-                          <td className="py-2.5"><ConfidenceBadge confidence={f.confidence} /></td>
-                          <td className="py-2.5 text-xs text-muted-foreground hidden md:table-cell">{f.evidence}</td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-                <Button variant="outline" size="sm" className="mt-4 border-primary/30 text-primary hover:bg-primary/10" onClick={handleSaveEdits} disabled={savingFields}>
-                  {savingFields ? 'Saving…' : 'Save Edits'}
-                </Button>
+                {fields === null ? (
+                  <div className="flex items-center gap-2 py-8 justify-center text-muted-foreground">
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                    <span className="text-sm">OCR processing… fields will appear when ready</span>
+                  </div>
+                ) : (
+                  <>
+                    <div className="overflow-x-auto">
+                      <table className="w-full text-sm">
+                        <thead>
+                          <tr className="border-b border-border text-left text-muted-foreground">
+                            <th className="pb-2 font-medium">Field</th>
+                            <th className="pb-2 font-medium">Value</th>
+                            <th className="pb-2 font-medium">Confidence</th>
+                            <th className="pb-2 font-medium hidden md:table-cell">Evidence</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {fields.map((f, i) => (
+                            <tr key={i} className="border-b border-border/50">
+                              <td className="py-2.5 text-muted-foreground">{f.name}</td>
+                              <td className="py-2.5">
+                                <Input
+                                  defaultValue={f.value}
+                                  ref={el => { if (apiCase?.extractedFields?.[i]) fieldRefs.current[apiCase.extractedFields[i].key] = el; }}
+                                  className="h-8 max-w-[200px] bg-secondary text-foreground"
+                                />
+                              </td>
+                              <td className="py-2.5"><ConfidenceBadge confidence={f.confidence} /></td>
+                              <td className="py-2.5 text-xs text-muted-foreground hidden md:table-cell">{f.evidence}</td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                    <Button variant="outline" size="sm" className="mt-4 border-primary/30 text-primary hover:bg-primary/10" onClick={handleSaveEdits} disabled={savingFields}>
+                      {savingFields ? 'Saving…' : 'Save Edits'}
+                    </Button>
+                  </>
+                )}
               </CardContent>
             </Card>
           </div>
@@ -310,7 +333,12 @@ const CaseDetail = () => {
                 <CardTitle className="text-base text-foreground">Validation & Flags</CardTitle>
               </CardHeader>
               <CardContent className="space-y-2">
-                {validations.map((v, i) => (
+                {validations === null ? (
+                  <div className="flex items-center gap-2 py-4 justify-center text-muted-foreground">
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                    <span className="text-sm">Validation pending…</span>
+                  </div>
+                ) : validations.map((v, i) => (
                   <div key={i} className="rounded-lg border border-border/50 bg-secondary/50 p-3">
                     <button className="flex w-full items-center gap-2 text-left" onClick={() => setExpandedRule(expandedRule === v.ruleId ? null : v.ruleId)}>
                       {v.severity === 'PASS' ? <CheckCircle className="h-4 w-4 shrink-0 text-success" /> : v.severity === 'WARN' ? <AlertTriangle className="h-4 w-4 shrink-0 text-warning" /> : <XCircle className="h-4 w-4 shrink-0 text-destructive" />}
@@ -349,6 +377,12 @@ const CaseDetail = () => {
                 <CardTitle className="text-base text-foreground">Audit Timeline</CardTitle>
               </CardHeader>
               <CardContent>
+                {timeline === null ? (
+                  <div className="flex items-center gap-2 py-4 justify-center text-muted-foreground">
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                    <span className="text-sm">Timeline pending…</span>
+                  </div>
+                ) : (
                 <div className="relative space-y-4 pl-6 before:absolute before:left-[11px] before:top-2 before:h-[calc(100%-16px)] before:w-px before:bg-border">
                   {timeline.map((e, i) => {
                     const Icon = eventIcons[e.event] || Clock;
@@ -369,6 +403,7 @@ const CaseDetail = () => {
                     );
                   })}
                 </div>
+                )}
               </CardContent>
             </Card>
           </div>
