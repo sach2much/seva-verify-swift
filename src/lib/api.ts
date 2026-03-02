@@ -89,7 +89,7 @@ export async function getCases(): Promise<Case[]> {
   if (!db) return [];
   const q = query(collection(db, 'cases'), orderBy('createdAt', 'desc'), limit(50));
   const snapshot = await getDocs(q);
-  return snapshot.docs.map(d => ({ caseId: d.id, ...d.data() } as Case));
+  return snapshot.docs.map(d => ({ ...d.data(), caseId: d.id } as Case));
 }
 
 // ---- GET SINGLE CASE ----
@@ -98,7 +98,7 @@ export async function getCase(caseId: string): Promise<Case | null> {
   const docRef = doc(db, 'cases', caseId);
   const docSnap = await getDoc(docRef);
   if (!docSnap.exists()) return null;
-  return { caseId: docSnap.id, ...docSnap.data() } as Case;
+  return { ...docSnap.data(), caseId: docSnap.id } as Case;
 }
 
 // ---- REAL-TIME CASE LISTENER ----
@@ -110,7 +110,7 @@ export function subscribeToCases(callback: (cases: Case[]) => void, onError?: (e
   const q = query(collection(db, 'cases'), orderBy('createdAt', 'desc'), limit(50));
   return onSnapshot(q,
     (snapshot) => {
-      const cases = snapshot.docs.map(d => ({ caseId: d.id, ...d.data() } as Case));
+      const cases = snapshot.docs.map(d => ({ ...d.data(), caseId: d.id } as Case));
       callback(cases);
     },
     (error) => {

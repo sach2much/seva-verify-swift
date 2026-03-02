@@ -23,6 +23,15 @@ const isToday = (dateStr: string) => {
 };
 
 // Map API cases to the table format used by UI
+const toDateString = (v: unknown): string => {
+  if (!v) return 'N/A';
+  if (typeof v === 'string') return v;
+  if (typeof v === 'object' && v !== null && 'toDate' in v && typeof (v as any).toDate === 'function') {
+    return (v as any).toDate().toLocaleString();
+  }
+  return 'N/A';
+};
+
 const mapApiCase = (c: ApiCase) => ({
   id: c.caseId || 'N/A',
   applicantName: c.applicantName || 'N/A',
@@ -30,7 +39,7 @@ const mapApiCase = (c: ApiCase) => ({
   status: (c.status as CaseStatus) || 'RECEIVED',
   riskBand: c.riskBand || undefined,
   riskScore: c.riskScore ?? 0,
-  createdAt: c.createdAt || 'N/A',
+  createdAt: toDateString((c as any).createdAt),
 });
 
 const Dashboard = () => {
