@@ -12,6 +12,7 @@ export interface Case {
   riskBand: RiskBand;
   riskScore: number;
   createdAt: string;
+  updatedAt?: string;
 }
 
 export const mockCases: Case[] = [

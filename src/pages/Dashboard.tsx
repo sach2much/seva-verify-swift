@@ -40,6 +40,7 @@ const mapApiCase = (c: ApiCase) => ({
   riskBand: c.riskBand || undefined,
   riskScore: c.riskScore ?? 0,
   createdAt: toDateString((c as any).createdAt),
+  updatedAt: toDateString((c as any).updatedAt),
 });
 
 const Dashboard = () => {
@@ -92,8 +93,8 @@ const Dashboard = () => {
   // Compute stats dynamically
   const totalCases = cases.length;
   const pendingReview = cases.filter(c => c.status === 'NEEDS_REVIEW').length;
-  const approvedToday = cases.filter(c => c.status === 'APPROVED' && isToday(c.createdAt)).length;
-  const rejectedToday = cases.filter(c => c.status === 'REJECTED' && isToday(c.createdAt)).length;
+  const approvedToday = cases.filter(c => c.status === 'APPROVED' && isToday(c.updatedAt || c.createdAt)).length;
+  const rejectedToday = cases.filter(c => c.status === 'REJECTED' && isToday(c.updatedAt || c.createdAt)).length;
 
   const stats = [
     { icon: FileCheck, label: 'Total Cases', value: totalCases.toLocaleString(), numValue: totalCases, color: 'text-info', chartColor: 'hsl(210, 100%, 56%)' },
