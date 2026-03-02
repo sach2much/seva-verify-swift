@@ -131,15 +131,16 @@ const CaseDetail = () => {
   })) ?? auditTimeline;
 
   const userEmail = user?.email || 'demo@sevakendra.gov.in';
+  const isUsingMockData = !apiCase;
 
   const handleSaveEdits = async () => {
-    if (!apiCase?.extractedFields || !isFirebaseConfigured) {
+    if (isUsingMockData) {
       toast.info('Field edits saved locally (demo mode)');
       return;
     }
     setSavingFields(true);
     try {
-      const editedFields = apiCase.extractedFields.map(f => ({
+      const editedFields = apiCase.extractedFields!.map(f => ({
         ...f,
         value: fieldRefs.current[f.key]?.value ?? f.value,
       }));
@@ -156,7 +157,7 @@ const CaseDetail = () => {
     const setDeciding = decision === 'APPROVED' ? setDecidingApprove : setDecidingReject;
     setDeciding(true);
     try {
-      if (isFirebaseConfigured) {
+      if (!isUsingMockData) {
         await submitDecision(caseData.id, decision, [], userEmail);
       }
       setLocalStatus(decision);
