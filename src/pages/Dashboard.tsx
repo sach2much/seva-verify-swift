@@ -24,13 +24,13 @@ const isToday = (dateStr: string) => {
 
 // Map API cases to the table format used by UI
 const mapApiCase = (c: ApiCase) => ({
-  id: c.caseId,
-  applicantName: c.applicantName || 'Unknown',
-  documentType: (c.docTypeFinal || c.docTypePredicted || 'Unknown') as DocType,
-  status: c.status as CaseStatus,
-  riskBand: c.riskBand,
-  riskScore: c.riskScore,
-  createdAt: c.createdAt,
+  id: c.caseId || 'N/A',
+  applicantName: c.applicantName || 'N/A',
+  documentType: (c.docTypeFinal || c.docTypePredicted || 'Pending') as DocType,
+  status: (c.status as CaseStatus) || 'RECEIVED',
+  riskBand: c.riskBand || undefined,
+  riskScore: c.riskScore ?? 0,
+  createdAt: c.createdAt || 'N/A',
 });
 
 const Dashboard = () => {
@@ -230,8 +230,8 @@ const Dashboard = () => {
                       <TableCell className="font-mono text-sm text-foreground">{c.id}</TableCell>
                       <TableCell className="text-foreground">{c.applicantName}</TableCell>
                       <TableCell className="text-muted-foreground">{c.documentType}</TableCell>
-                      <TableCell><StatusBadge status={c.status} /></TableCell>
-                      <TableCell><RiskBadge band={c.riskBand} /></TableCell>
+<TableCell><StatusBadge status={c.status || 'RECEIVED'} /></TableCell>
+                      <TableCell>{c.riskBand ? <RiskBadge band={c.riskBand} /> : <span className="text-muted-foreground">N/A</span>}</TableCell>
                       <TableCell className="text-sm text-muted-foreground">{c.createdAt}</TableCell>
                       <TableCell>
                         <Link to={`/case/${c.id}`}>
