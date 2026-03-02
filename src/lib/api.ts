@@ -91,12 +91,23 @@ export async function uploadDocument(file: File, languageHint: string, docType: 
   return data as { caseId: string; status: string };
 }
 
+// Parse JSON-string fields that Firestore stores as strings
+function parseJsonFields(data: Record<string, any>): Record<string, any> {
+  const jsonKeys = ['extractedFields', 'validations', 'auditTrail', 'llmResult', 'mobileNumbers'];
+  for (const key of jsonKeys) {
+    if (typeof data[key] === 'string') {
+      try { data[key] = JSON.parse(data[key]); } catch { /* leave as-is */ }
+    }
+  }
+  return data;
+}
+
 // ---- GET ALL CASES from Firestore ----
 export async function getCases(): Promise<Case[]> {
   if (!db) return [];
   const q = query(collection(db, 'cases'), orderBy('createdAt', 'desc'), limit(50));
   const snapshot = await getDocs(q);
-  return snapshot.docs.map(d => ({ ...d.data(), caseId: d.id } as Case));
+  return snapshot.docs.map(d => ({ ...parseJsonFields({ ...d.data() }), caseId: d.id } as Case));
 }
 
 // ---- GET SINGLE CASE ----
@@ -105,7 +116,7 @@ export async function getCase(caseId: string): Promise<Case | null> {
   const docRef = doc(db, 'cases', caseId);
   const docSnap = await getDoc(docRef);
   if (!docSnap.exists()) return null;
-  return { ...docSnap.data(), caseId: docSnap.id } as Case;
+  return { ...parseJsonFields({ ...docSnap.data() }), caseId: docSnap.id } as Case;
 }
 
 // ---- REAL-TIME CASE LISTENER ----
@@ -117,7 +128,7 @@ export function subscribeToCases(callback: (cases: Case[]) => void, onError?: (e
   const q = query(collection(db, 'cases'), orderBy('createdAt', 'desc'), limit(50));
   return onSnapshot(q,
     (snapshot) => {
-      const cases = snapshot.docs.map(d => ({ ...d.data(), caseId: d.id } as Case));
+      const cases = snapshot.docs.map(d => ({ ...parseJsonFields({ ...d.data() }), caseId: d.id } as Case));
       callback(cases);
     },
     (error) => {
