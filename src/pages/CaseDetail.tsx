@@ -2,8 +2,8 @@ import { useState, useEffect, useRef } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import AppNavbar from '@/components/AppNavbar';
 import { StatusBadge, RiskBadge, SeverityBadge, ConfidenceBadge } from '@/components/StatusBadges';
-import { sampleFields, validationResults, authenticityChecks, auditTimeline, mockCases, type CaseStatus } from '@/data/mockData';
-import { getCase, saveFieldEdits, submitDecision, type Case as ApiCase } from '@/lib/api';
+import { sampleFields, validationResults, authenticityChecks, auditTimeline, mockCases } from '@/data/mockData';
+import { getCase, saveFieldEdits, submitDecision, type Case as ApiCase, type ExtractedField } from '@/lib/api';
 import { ENV } from '@/config/env';
 import { useAuth } from '@/context/AuthContext';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -56,6 +56,11 @@ const CaseNotFound = () => (
   </div>
 );
 
+// Helper to format field labels: "applicant_name" -> "Applicant Name"
+function formatLabel(label: string): string {
+  return label.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
+}
+
 const CaseDetail = () => {
   const { caseId } = useParams();
   const { user } = useAuth();
@@ -79,19 +84,21 @@ const CaseDetail = () => {
     if (!isFirebaseConfigured) {
       // Demo mode: use mock data
       setLoading(false);
-      if (!mockCases.find(c => c.id === caseId)) {
-        // Still show mock[0] for demo
-      }
       return;
     }
 
     getCase(caseId).then(c => {
       if (c) {
+        console.log('[DocVerify Debug] Loaded case:', c.caseId, 'status:', c.status);
+        console.log('[DocVerify Debug] extractedFields count:', c.extractedFields?.length);
+        console.log('[DocVerify Debug] validations count:', c.validations?.length);
+        console.log('[DocVerify Debug] llmResult:', c.llmResult);
         setApiCase(c);
+      } else {
+        console.log('[DocVerify Debug] Case not found in Firestore:', caseId);
       }
-      // If null, fall through to mock data
-    }).catch(() => {
-      // Firestore error — fall back to mock
+    }).catch((err) => {
+      console.error('[DocVerify Debug] Firestore error:', err);
     }).finally(() => setLoading(false));
   }, [caseId, isFirebaseConfigured]);
 
@@ -99,40 +106,62 @@ const CaseDetail = () => {
   if (notFound && isFirebaseConfigured) return <CaseNotFound />;
 
   // Resolve data sources
+  const isDemoMode = !isFirebaseConfigured || !apiCase;
+
   const caseData = apiCase ? {
     id: apiCase.caseId,
     applicantName: apiCase.applicantName || 'Unknown',
-    documentType: apiCase.docTypeFinal || apiCase.docTypePredicted || 'Unknown',
+    documentType: apiCase.docTypeFinal || apiCase.docTypePredicted || apiCase.docType || 'Unknown',
     status: localStatus || apiCase.status,
-    riskBand: apiCase.riskBand,
-    riskScore: apiCase.riskScore,
+    riskBand: apiCase.riskBand || 'LOW',
+    riskScore: apiCase.riskScore ?? 0,
     createdAt: apiCase.createdAt,
   } : { ...mockCase, status: localStatus || mockCase.status };
 
-  const isDemoMode = !isFirebaseConfigured;
-
+  // --- Extracted Fields ---
+  // Real data: use apiCase.extractedFields directly (already mapped by mapFirestoreDoc)
+  // Demo mode: use sampleFields from mock data
   const fields = isDemoMode
-    ? sampleFields
-    : apiCase?.extractedFields?.length
-      ? apiCase.extractedFields.map(f => ({
-          name: f.label,
-          value: f.value,
-          confidence: f.confidenceBand,
-          evidence: f.evidence?.snippet || '',
+    ? sampleFields.map(f => ({
+        label: f.name,
+        value: f.value,
+        confidence: 0,
+        confidenceBand: f.confidence,
+        evidence: f.evidence,
+      }))
+    : apiCase!.extractedFields.length > 0
+      ? apiCase!.extractedFields.map(f => ({
+          label: f.label,
+          value: f.value ?? '',
+          confidence: f.confidence,
+          confidenceBand: f.confidenceBand,
+          evidence: f.evidence,
         }))
-      : null; // null = real case but no fields yet
+      : null; // null = real case but no fields yet (still processing)
 
+  // --- Validations ---
   const validations = isDemoMode
-    ? validationResults
-    : apiCase?.validations?.length
-      ? apiCase.validations.map(v => ({
-          ruleId: v.ruleId,
-          severity: v.severity as 'PASS' | 'WARN' | 'FAIL',
+    ? validationResults.map(v => ({
+        field: '',
+        rule: v.ruleId,
+        result: v.severity as string,
+        message: v.message,
+        explain: v.explain,
+      }))
+    : apiCase!.validations.length > 0
+      ? apiCase!.validations.map(v => ({
+          field: v.field,
+          rule: v.rule,
+          result: v.result,
           message: v.message,
-          explain: v.explain,
+          explain: '',
         }))
       : null;
 
+  // --- LLM Result ---
+  const llmResult = isDemoMode ? null : apiCase?.llmResult ?? null;
+
+  // --- Audit Timeline ---
   const timeline = isDemoMode
     ? auditTimeline
     : apiCase?.auditTrail?.length
@@ -154,9 +183,9 @@ const CaseDetail = () => {
     }
     setSavingFields(true);
     try {
-      const editedFields = apiCase.extractedFields!.map(f => ({
+      const editedFields: ExtractedField[] = apiCase!.extractedFields.map((f, i) => ({
         ...f,
-        value: fieldRefs.current[f.key]?.value ?? f.value,
+        value: fieldRefs.current[f.label]?.value ?? f.value,
       }));
       await saveFieldEdits(caseData.id, editedFields, userEmail);
       toast.success('Field edits saved successfully');
@@ -207,10 +236,10 @@ const CaseDetail = () => {
           <span className="text-foreground">{caseData.id}</span>
         </div>
 
-        {!apiCase && isFirebaseConfigured && (
+        {isDemoMode && isFirebaseConfigured && (
           <div className="mb-4 flex items-center gap-2 rounded-lg border border-warning/40 bg-warning/10 px-4 py-2.5 text-sm text-warning-foreground">
             <AlertTriangle className="h-4 w-4 shrink-0 text-warning" />
-            <span>Demo Mode — showing sample data. Upload a document to see real OCR results.</span>
+            <span>Demo Mode -- showing sample data. Upload a document to see real OCR results.</span>
           </div>
         )}
 
@@ -228,8 +257,8 @@ const CaseDetail = () => {
                 <div className="flex h-48 items-center justify-center rounded-lg bg-secondary">
                   <div className="text-center text-muted-foreground">
                     <ScanSearch className="mx-auto mb-2 h-10 w-10" />
-                    <p className="text-sm">Document Preview — {caseData.documentType}</p>
-                    <p className="text-xs">aadhaar_scan.pdf</p>
+                    <p className="text-sm">Document Preview -- {caseData.documentType}</p>
+                    <p className="text-xs">{apiCase?.fileName || 'aadhaar_scan.pdf'}</p>
                   </div>
                 </div>
               </CardContent>
@@ -244,7 +273,9 @@ const CaseDetail = () => {
                 {fields === null ? (
                   <div className="flex items-center gap-2 py-8 justify-center text-muted-foreground">
                     <Loader2 className="h-4 w-4 animate-spin" />
-                    <span className="text-sm">OCR processing… fields will appear when ready</span>
+                    <span className="text-sm">
+                      {caseData.status === 'PROCESSING' ? 'OCR processing... fields will appear when ready' : 'No extracted fields available.'}
+                    </span>
                   </div>
                 ) : (
                   <>
@@ -261,15 +292,22 @@ const CaseDetail = () => {
                         <tbody>
                           {fields.map((f, i) => (
                             <tr key={i} className="border-b border-border/50">
-                              <td className="py-2.5 text-muted-foreground">{f.name}</td>
+                              <td className="py-2.5 text-muted-foreground">{formatLabel(f.label)}</td>
                               <td className="py-2.5">
                                 <Input
-                                  defaultValue={f.value}
-                                  ref={el => { if (apiCase?.extractedFields?.[i]) fieldRefs.current[apiCase.extractedFields[i].key] = el; }}
+                                  defaultValue={f.value || ''}
+                                  ref={el => { fieldRefs.current[f.label] = el; }}
                                   className="h-8 max-w-[200px] bg-secondary text-foreground"
                                 />
                               </td>
-                              <td className="py-2.5"><ConfidenceBadge confidence={f.confidence} /></td>
+                              <td className="py-2.5">
+                                <ConfidenceBadge confidence={f.confidenceBand} />
+                                {!isDemoMode && f.confidence > 0 && (
+                                  <span className="ml-1 text-xs text-muted-foreground">
+                                    ({Math.round(f.confidence * 100)}%)
+                                  </span>
+                                )}
+                              </td>
                               <td className="py-2.5 text-xs text-muted-foreground hidden md:table-cell">{f.evidence}</td>
                             </tr>
                           ))}
@@ -277,12 +315,26 @@ const CaseDetail = () => {
                       </table>
                     </div>
                     <Button variant="outline" size="sm" className="mt-4 border-primary/30 text-primary hover:bg-primary/10" onClick={handleSaveEdits} disabled={savingFields}>
-                      {savingFields ? 'Saving…' : 'Save Edits'}
+                      {savingFields ? 'Saving...' : 'Save Edits'}
                     </Button>
                   </>
                 )}
               </CardContent>
             </Card>
+
+            {/* OCR Raw Text (only for real cases) */}
+            {!isDemoMode && apiCase?.ocrRawText && (
+              <Card className="border-border bg-card">
+                <CardHeader className="pb-3">
+                  <CardTitle className="text-base text-foreground">OCR Raw Text</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <pre className="max-h-48 overflow-auto rounded bg-secondary p-3 text-xs text-foreground whitespace-pre-wrap">
+                    {apiCase.ocrRawText}
+                  </pre>
+                </CardContent>
+              </Card>
+            )}
           </div>
 
           {/* Right Column */}
@@ -295,7 +347,7 @@ const CaseDetail = () => {
                     <p className="text-xs text-muted-foreground">Case ID</p>
                     <p className="font-mono font-bold text-foreground">{caseData.id}</p>
                   </div>
-                  <StatusBadge status={caseData.status as CaseStatus} />
+                  <StatusBadge status={caseData.status} />
                 </div>
                 <div>
                   <p className="text-xs text-muted-foreground">Document Type</p>
@@ -318,14 +370,59 @@ const CaseDetail = () => {
                 </div>
                 <div className="flex gap-2 pt-2">
                   <Button size="sm" className="flex-1 bg-success hover:bg-success/90 text-success-foreground" onClick={() => handleDecision('APPROVED')} disabled={decidingApprove}>
-                    <CheckCircle className="mr-1 h-4 w-4" />{decidingApprove ? 'Approving…' : 'Approve'}
+                    <CheckCircle className="mr-1 h-4 w-4" />{decidingApprove ? 'Approving...' : 'Approve'}
                   </Button>
                   <Button size="sm" variant="destructive" className="flex-1" onClick={() => handleDecision('REJECTED')} disabled={decidingReject}>
-                    <XCircle className="mr-1 h-4 w-4" />{decidingReject ? 'Rejecting…' : 'Reject'}
+                    <XCircle className="mr-1 h-4 w-4" />{decidingReject ? 'Rejecting...' : 'Reject'}
                   </Button>
                 </div>
               </CardContent>
             </Card>
+
+            {/* LLM Result Summary (only for real cases) */}
+            {llmResult && (
+              <Card className="border-border bg-card">
+                <CardHeader className="pb-3">
+                  <CardTitle className="text-base text-foreground">AI Analysis</CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <p className="text-xs text-muted-foreground uppercase">Authenticity Score</p>
+                      <p className={`text-2xl font-bold ${
+                        llmResult.authenticityScore >= 80 ? 'text-success' :
+                        llmResult.authenticityScore >= 50 ? 'text-warning' :
+                        'text-destructive'
+                      }`}>
+                        {llmResult.authenticityScore}/100
+                      </p>
+                    </div>
+                    <div>
+                      <p className="text-xs text-muted-foreground uppercase">Risk Band</p>
+                      <RiskBadge band={llmResult.riskBand} />
+                    </div>
+                  </div>
+                  {llmResult.flags && llmResult.flags.length > 0 && (
+                    <div>
+                      <p className="text-xs text-muted-foreground uppercase mb-1">Flags</p>
+                      <div className="flex flex-wrap gap-2">
+                        {llmResult.flags.map((flag, i) => (
+                          <Badge key={i} variant="outline" className="border-warning/40 bg-warning/10 text-warning text-xs">
+                            {flag}
+                          </Badge>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                  {llmResult.reasoning && (
+                    <div>
+                      <p className="text-xs text-muted-foreground uppercase mb-1">Reasoning</p>
+                      <p className="text-sm text-foreground">{llmResult.reasoning}</p>
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+            )}
 
             {/* Validation Flags */}
             <Card className="border-border bg-card">
@@ -336,38 +433,44 @@ const CaseDetail = () => {
                 {validations === null ? (
                   <div className="flex items-center gap-2 py-4 justify-center text-muted-foreground">
                     <Loader2 className="h-4 w-4 animate-spin" />
-                    <span className="text-sm">Validation pending…</span>
+                    <span className="text-sm">
+                      {caseData.status === 'PROCESSING' ? 'Validation pending...' : 'No validation results available.'}
+                    </span>
                   </div>
                 ) : validations.map((v, i) => (
                   <div key={i} className="rounded-lg border border-border/50 bg-secondary/50 p-3">
-                    <button className="flex w-full items-center gap-2 text-left" onClick={() => setExpandedRule(expandedRule === v.ruleId ? null : v.ruleId)}>
-                      {v.severity === 'PASS' ? <CheckCircle className="h-4 w-4 shrink-0 text-success" /> : v.severity === 'WARN' ? <AlertTriangle className="h-4 w-4 shrink-0 text-warning" /> : <XCircle className="h-4 w-4 shrink-0 text-destructive" />}
+                    <button className="flex w-full items-center gap-2 text-left" onClick={() => setExpandedRule(expandedRule === `${v.rule}-${i}` ? null : `${v.rule}-${i}`)}>
+                      {v.result === 'PASS' ? <CheckCircle className="h-4 w-4 shrink-0 text-success" /> : v.result === 'WARN' ? <AlertTriangle className="h-4 w-4 shrink-0 text-warning" /> : <XCircle className="h-4 w-4 shrink-0 text-destructive" />}
                       <span className="flex-1 text-sm text-foreground">{v.message}</span>
-                      <SeverityBadge severity={v.severity} />
-                      <ChevronDown className={`h-4 w-4 text-muted-foreground transition-transform ${expandedRule === v.ruleId ? 'rotate-180' : ''}`} />
+                      <SeverityBadge severity={v.result} />
+                      <ChevronDown className={`h-4 w-4 text-muted-foreground transition-transform ${expandedRule === `${v.rule}-${i}` ? 'rotate-180' : ''}`} />
                     </button>
-                    {expandedRule === v.ruleId && (
+                    {expandedRule === `${v.rule}-${i}` && (
                       <div className="mt-2 rounded bg-background p-2 text-xs text-muted-foreground">
-                        <span className="font-mono text-[10px] text-primary">{v.ruleId}</span>
-                        <p className="mt-1">{v.explain}</p>
+                        <span className="font-mono text-[10px] text-primary">{v.rule}</span>
+                        {v.field && <span className="ml-2 text-[10px]">Field: {formatLabel(v.field)}</span>}
+                        {v.explain && <p className="mt-1">{v.explain}</p>}
                       </div>
                     )}
                   </div>
                 ))}
 
-                <div className="mt-4 pt-3 border-t border-border">
-                  <p className="mb-2 text-sm font-medium text-foreground">Authenticity Checks</p>
-                  <div className="grid grid-cols-2 gap-2">
-                    {authenticityChecks.map((a, i) => (
-                      <div key={i} className="rounded-lg bg-secondary/50 p-2 text-center">
-                        <p className="text-xs text-muted-foreground">{a.label}</p>
-                        <Badge variant="outline" className={`mt-1 border-0 text-xs ${a.status === 'Detected' ? 'bg-success/20 text-success' : a.status === 'Uncertain' ? 'bg-warning/20 text-warning' : 'bg-info/20 text-info'}`}>
-                          {a.status}
-                        </Badge>
-                      </div>
-                    ))}
+                {/* Authenticity Checks -- only show in demo mode or if no llmResult */}
+                {(isDemoMode || !llmResult) && (
+                  <div className="mt-4 pt-3 border-t border-border">
+                    <p className="mb-2 text-sm font-medium text-foreground">Authenticity Checks</p>
+                    <div className="grid grid-cols-2 gap-2">
+                      {authenticityChecks.map((a, i) => (
+                        <div key={i} className="rounded-lg bg-secondary/50 p-2 text-center">
+                          <p className="text-xs text-muted-foreground">{a.label}</p>
+                          <Badge variant="outline" className={`mt-1 border-0 text-xs ${a.status === 'Detected' ? 'bg-success/20 text-success' : a.status === 'Uncertain' ? 'bg-warning/20 text-warning' : 'bg-info/20 text-info'}`}>
+                            {a.status}
+                          </Badge>
+                        </div>
+                      ))}
+                    </div>
                   </div>
-                </div>
+                )}
               </CardContent>
             </Card>
 
@@ -380,7 +483,7 @@ const CaseDetail = () => {
                 {timeline === null ? (
                   <div className="flex items-center gap-2 py-4 justify-center text-muted-foreground">
                     <Loader2 className="h-4 w-4 animate-spin" />
-                    <span className="text-sm">Timeline pending…</span>
+                    <span className="text-sm">Timeline pending...</span>
                   </div>
                 ) : (
                 <div className="relative space-y-4 pl-6 before:absolute before:left-[11px] before:top-2 before:h-[calc(100%-16px)] before:w-px before:bg-border">

@@ -35,7 +35,7 @@ const toDateString = (v: unknown): string => {
 const mapApiCase = (c: ApiCase) => ({
   id: c.caseId || 'N/A',
   applicantName: c.applicantName || 'N/A',
-  documentType: (c.docTypeFinal || c.docTypePredicted || 'Pending') as DocType,
+  documentType: (c.docTypeFinal || c.docTypePredicted || (c as any).docType || 'Pending') as DocType,
   status: (c.status as CaseStatus) || 'RECEIVED',
   riskBand: c.riskBand || undefined,
   riskScore: c.riskScore ?? 0,
@@ -119,7 +119,7 @@ const Dashboard = () => {
         {demoMode && (
           <div className="mb-4 flex items-center gap-2 rounded-lg border border-warning/30 bg-warning/10 px-4 py-2 text-sm text-warning">
             <AlertTriangle className="h-4 w-4 shrink-0" />
-            Running in demo mode — connect Firebase to see live data
+            Running in demo mode -- connect Firebase to see live data
           </div>
         )}
 
@@ -184,7 +184,7 @@ const Dashboard = () => {
             <SelectTrigger className="w-[160px]"><SelectValue placeholder="Status" /></SelectTrigger>
             <SelectContent>
               <SelectItem value="all">All Statuses</SelectItem>
-              {(['RECEIVED','PROCESSING','READY','NEEDS_REVIEW','APPROVED','REJECTED','FAILED'] as CaseStatus[]).map(s => (
+              {['RECEIVED','PROCESSING','READY','NEEDS_REVIEW','APPROVED','REJECTED','FAILED','VERIFIED','ERROR'].map(s => (
                 <SelectItem key={s} value={s}>{s.replace('_',' ')}</SelectItem>
               ))}
             </SelectContent>

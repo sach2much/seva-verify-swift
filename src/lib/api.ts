@@ -3,22 +3,27 @@ import { db } from '@/lib/firebase';
 import { collection, doc, getDoc, getDocs, query, orderBy, limit, onSnapshot, updateDoc } from 'firebase/firestore';
 
 // ---- CASE TYPES ----
+
 export interface ExtractedField {
-  key: string;
   label: string;
-  value: string;
+  value: string | null;
   confidence: number;
-  confidenceBand: 'HIGH' | 'MED' | 'LOW';
-  evidence: { page: number; snippet: string };
-  source: 'OCR' | 'LLM' | 'OPERATOR';
+  confidenceBand: 'HIGH' | 'MEDIUM' | 'LOW';
+  evidence: string;
 }
 
 export interface ValidationResult {
-  ruleId: string;
-  severity: 'INFO' | 'WARN' | 'FAIL' | 'PASS';
+  field: string;
+  rule: string;
+  result: 'PASS' | 'FAIL' | 'WARN';
   message: string;
-  relatedFields: string[];
-  explain: string;
+}
+
+export interface LlmResult {
+  authenticityScore: number;
+  riskBand: string;
+  flags: string[];
+  reasoning: string;
 }
 
 export interface AuditEvent {
@@ -33,19 +38,103 @@ export interface Case {
   createdAt: string;
   updatedAt: string;
   createdByUserId: string;
-  fileType: 'pdf' | 'jpeg';
+  fileName: string;
+  fileType: string;
+  fileStoragePath: string;
   languageHint: string;
+  docType: string;
   docTypePredicted: string;
   docTypeFinal: string;
-  status: 'RECEIVED' | 'PROCESSING' | 'READY' | 'NEEDS_REVIEW' | 'APPROVED' | 'REJECTED' | 'FAILED_OCR' | 'FAILED_EXTRACTION';
+  status: string;
   riskScore: number;
-  riskBand: 'LOW' | 'MED' | 'HIGH';
+  riskBand: string;
   applicantName?: string;
-  extractedFields?: ExtractedField[];
-  validations?: ValidationResult[];
+  ocrRawText?: string;
+  extractedFields: ExtractedField[];
+  validations: ValidationResult[];
+  llmResult: LlmResult | null;
   flags?: string[];
   auditTrail?: AuditEvent[];
   decision?: { status: string; decidedBy: string; decidedAt: string; reasonCodes: string[] };
+}
+
+// ---- HELPERS: safely parse values that might be JSON strings or already native objects ----
+
+function safeParseArray(val: unknown): unknown[] {
+  if (Array.isArray(val)) return val;
+  if (typeof val === 'string' && val.trim().startsWith('[')) {
+    try { return JSON.parse(val); } catch { return []; }
+  }
+  return [];
+}
+
+function safeParseObject(val: unknown): Record<string, unknown> | null {
+  if (val && typeof val === 'object' && !Array.isArray(val)) return val as Record<string, unknown>;
+  if (typeof val === 'string' && val.trim().startsWith('{')) {
+    try { return JSON.parse(val); } catch { return null; }
+  }
+  return null;
+}
+
+// ---- MAP Firestore doc -> App Case model ----
+// n8n writes: extractedFields[].{label, value, confidence, confidenceBand, evidence}
+// n8n writes: validations[].{field, rule, result, message}
+// n8n writes: llmResult.{authenticityScore, riskBand, flags, reasoning}
+
+function mapFirestoreDoc(data: Record<string, any>, docId: string): Case {
+  const rawExtractedFields = safeParseArray(data.extractedFields);
+  const rawValidations = safeParseArray(data.validations);
+  const rawLlmResult = safeParseObject(data.llmResult);
+
+  // Debug logging (temporary -- remove after confirming fix)
+  console.log('[DocVerify Debug] Raw Firestore data keys:', Object.keys(data));
+  console.log('[DocVerify Debug] extractedFields:', typeof data.extractedFields, Array.isArray(data.extractedFields), rawExtractedFields.length, 'items');
+  console.log('[DocVerify Debug] validations:', typeof data.validations, Array.isArray(data.validations), rawValidations.length, 'items');
+  console.log('[DocVerify Debug] llmResult:', typeof data.llmResult, rawLlmResult ? 'present' : 'null');
+
+  return {
+    caseId: data.caseId || docId,
+    createdAt: data.createdAt || '',
+    updatedAt: data.updatedAt || '',
+    createdByUserId: data.createdByUserId || '',
+    fileName: data.fileName || '',
+    fileType: data.fileType || '',
+    fileStoragePath: data.fileStoragePath || '',
+    languageHint: data.languageHint || '',
+    docType: data.docType || 'UNKNOWN',
+    docTypePredicted: data.docTypePredicted || data.docType || '',
+    docTypeFinal: data.docTypeFinal || data.docType || '',
+    status: data.status || 'PROCESSING',
+    riskScore: data.riskScore ?? (rawLlmResult ? (100 - ((rawLlmResult as any).authenticityScore ?? 0)) : 0),
+    riskBand: data.riskBand || (rawLlmResult ? (rawLlmResult as any).riskBand : 'LOW') || 'LOW',
+    applicantName: data.applicantName || '',
+    ocrRawText: data.ocrRawText || '',
+
+    extractedFields: rawExtractedFields.map((f: any) => ({
+      label: f.label || f.name || f.fieldName || f.key || 'unknown',
+      value: f.value ?? null,
+      confidence: typeof f.confidence === 'number' ? f.confidence : (typeof f.confidenceLevel === 'number' ? f.confidenceLevel : 0),
+      confidenceBand: f.confidenceBand || (typeof f.confidence === 'number' ? (f.confidence >= 0.8 ? 'HIGH' : f.confidence >= 0.5 ? 'MEDIUM' : 'LOW') : 'LOW'),
+      evidence: typeof f.evidence === 'string' ? f.evidence : (f.evidence?.snippet || ''),
+    })),
+
+    validations: rawValidations.map((v: any) => ({
+      field: v.field || v.fieldName || v.relatedFields?.[0] || 'unknown',
+      rule: v.rule || v.ruleId || v.ruleName || '',
+      result: v.result || v.severity || v.status || 'UNKNOWN',
+      message: v.message || v.explain || v.description || '',
+    })),
+
+    llmResult: rawLlmResult ? {
+      authenticityScore: (rawLlmResult as any).authenticityScore ?? 0,
+      riskBand: (rawLlmResult as any).riskBand || data.riskBand || 'LOW',
+      flags: safeParseArray((rawLlmResult as any).flags) as string[],
+      reasoning: (rawLlmResult as any).reasoning || '',
+    } : null,
+
+    flags: safeParseArray(data.flags) as string[],
+    auditTrail: safeParseArray(data.auditTrail) as AuditEvent[],
+  };
 }
 
 // ---- UPLOAD: POST multipart to n8n ----
@@ -91,23 +180,12 @@ export async function uploadDocument(file: File, languageHint: string, docType: 
   return data as { caseId: string; status: string };
 }
 
-// Parse JSON-string fields that Firestore stores as strings
-function parseJsonFields(data: Record<string, any>): Record<string, any> {
-  const jsonKeys = ['extractedFields', 'validations', 'auditTrail', 'llmResult', 'mobileNumbers'];
-  for (const key of jsonKeys) {
-    if (typeof data[key] === 'string') {
-      try { data[key] = JSON.parse(data[key]); } catch { /* leave as-is */ }
-    }
-  }
-  return data;
-}
-
 // ---- GET ALL CASES from Firestore ----
 export async function getCases(): Promise<Case[]> {
   if (!db) return [];
   const q = query(collection(db, 'cases'), orderBy('createdAt', 'desc'), limit(50));
   const snapshot = await getDocs(q);
-  return snapshot.docs.map(d => ({ ...parseJsonFields({ ...d.data() }), caseId: d.id } as Case));
+  return snapshot.docs.map(d => mapFirestoreDoc({ ...d.data() }, d.id));
 }
 
 // ---- GET SINGLE CASE ----
@@ -116,7 +194,7 @@ export async function getCase(caseId: string): Promise<Case | null> {
   const docRef = doc(db, 'cases', caseId);
   const docSnap = await getDoc(docRef);
   if (!docSnap.exists()) return null;
-  return { ...parseJsonFields({ ...docSnap.data() }), caseId: docSnap.id } as Case;
+  return mapFirestoreDoc({ ...docSnap.data() }, docSnap.id);
 }
 
 // ---- REAL-TIME CASE LISTENER ----
@@ -128,7 +206,7 @@ export function subscribeToCases(callback: (cases: Case[]) => void, onError?: (e
   const q = query(collection(db, 'cases'), orderBy('createdAt', 'desc'), limit(50));
   return onSnapshot(q,
     (snapshot) => {
-      const cases = snapshot.docs.map(d => ({ ...parseJsonFields({ ...d.data() }), caseId: d.id } as Case));
+      const cases = snapshot.docs.map(d => mapFirestoreDoc({ ...d.data() }, d.id));
       callback(cases);
     },
     (error) => {
