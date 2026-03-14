@@ -56,7 +56,7 @@ const CaseNotFound = () => (
   </div>
 );
 
-// Helper to format field labels: "applicant_name" -> "Applicant Name"
+// Helper to format field labels: "applicant_name" → "Applicant Name"
 function formatLabel(label: string): string {
   return label.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
 }
@@ -82,24 +82,33 @@ const CaseDetail = () => {
     if (!caseId) return;
 
     if (!isFirebaseConfigured) {
-      // Demo mode: use mock data
       setLoading(false);
       return;
     }
 
+    let pollTimer: ReturnType<typeof setInterval> | null = null;
+
     getCase(caseId).then(c => {
       if (c) {
-        console.log('[DocVerify Debug] Loaded case:', c.caseId, 'status:', c.status);
-        console.log('[DocVerify Debug] extractedFields count:', c.extractedFields?.length);
-        console.log('[DocVerify Debug] validations count:', c.validations?.length);
-        console.log('[DocVerify Debug] llmResult:', c.llmResult);
         setApiCase(c);
-      } else {
-        console.log('[DocVerify Debug] Case not found in Firestore:', caseId);
+        // If still processing, poll every 4s until results arrive
+        if ((c.status === 'PROCESSING' || c.status === 'RECEIVED') && c.extractedFields.length === 0) {
+          pollTimer = setInterval(async () => {
+            const updated = await getCase(caseId);
+            if (updated) {
+              setApiCase(updated);
+              if (updated.status !== 'PROCESSING' && updated.status !== 'RECEIVED') {
+                if (pollTimer) clearInterval(pollTimer);
+              }
+            }
+          }, 4000);
+        }
       }
     }).catch((err) => {
-      console.error('[DocVerify Debug] Firestore error:', err);
+      console.error('[DocVerify] Firestore error:', err);
     }).finally(() => setLoading(false));
+
+    return () => { if (pollTimer) clearInterval(pollTimer); };
   }, [caseId, isFirebaseConfigured]);
 
   if (loading) return <CaseDetailSkeleton />;
@@ -239,7 +248,7 @@ const CaseDetail = () => {
         {isDemoMode && isFirebaseConfigured && (
           <div className="mb-4 flex items-center gap-2 rounded-lg border border-warning/40 bg-warning/10 px-4 py-2.5 text-sm text-warning-foreground">
             <AlertTriangle className="h-4 w-4 shrink-0 text-warning" />
-            <span>Demo Mode -- showing sample data. Upload a document to see real OCR results.</span>
+            <span>Demo Mode — showing sample data. Upload a document to see real OCR results.</span>
           </div>
         )}
 
@@ -257,7 +266,7 @@ const CaseDetail = () => {
                 <div className="flex h-48 items-center justify-center rounded-lg bg-secondary">
                   <div className="text-center text-muted-foreground">
                     <ScanSearch className="mx-auto mb-2 h-10 w-10" />
-                    <p className="text-sm">Document Preview -- {caseData.documentType}</p>
+                    <p className="text-sm">Document Preview — {caseData.documentType}</p>
                     <p className="text-xs">{apiCase?.fileName || 'aadhaar_scan.pdf'}</p>
                   </div>
                 </div>
@@ -272,10 +281,11 @@ const CaseDetail = () => {
               <CardContent>
                 {fields === null ? (
                   <div className="flex items-center gap-2 py-8 justify-center text-muted-foreground">
-                    <Loader2 className="h-4 w-4 animate-spin" />
-                    <span className="text-sm">
-                      {caseData.status === 'PROCESSING' ? 'OCR processing... fields will appear when ready' : 'No extracted fields available.'}
-                    </span>
+                    {(caseData.status === 'PROCESSING' || caseData.status === 'RECEIVED') ? (
+                      <><Loader2 className="h-4 w-4 animate-spin" /><span className="text-sm">OCR processing… fields will appear when ready</span></>
+                    ) : (
+                      <span className="text-sm">No extracted fields available for this case.</span>
+                    )}
                   </div>
                 ) : (
                   <>
@@ -315,7 +325,7 @@ const CaseDetail = () => {
                       </table>
                     </div>
                     <Button variant="outline" size="sm" className="mt-4 border-primary/30 text-primary hover:bg-primary/10" onClick={handleSaveEdits} disabled={savingFields}>
-                      {savingFields ? 'Saving...' : 'Save Edits'}
+                      {savingFields ? 'Saving…' : 'Save Edits'}
                     </Button>
                   </>
                 )}
@@ -370,10 +380,10 @@ const CaseDetail = () => {
                 </div>
                 <div className="flex gap-2 pt-2">
                   <Button size="sm" className="flex-1 bg-success hover:bg-success/90 text-success-foreground" onClick={() => handleDecision('APPROVED')} disabled={decidingApprove}>
-                    <CheckCircle className="mr-1 h-4 w-4" />{decidingApprove ? 'Approving...' : 'Approve'}
+                    <CheckCircle className="mr-1 h-4 w-4" />{decidingApprove ? 'Approving…' : 'Approve'}
                   </Button>
                   <Button size="sm" variant="destructive" className="flex-1" onClick={() => handleDecision('REJECTED')} disabled={decidingReject}>
-                    <XCircle className="mr-1 h-4 w-4" />{decidingReject ? 'Rejecting...' : 'Reject'}
+                    <XCircle className="mr-1 h-4 w-4" />{decidingReject ? 'Rejecting…' : 'Reject'}
                   </Button>
                 </div>
               </CardContent>
@@ -432,10 +442,11 @@ const CaseDetail = () => {
               <CardContent className="space-y-2">
                 {validations === null ? (
                   <div className="flex items-center gap-2 py-4 justify-center text-muted-foreground">
-                    <Loader2 className="h-4 w-4 animate-spin" />
-                    <span className="text-sm">
-                      {caseData.status === 'PROCESSING' ? 'Validation pending...' : 'No validation results available.'}
-                    </span>
+                    {(caseData.status === 'PROCESSING' || caseData.status === 'RECEIVED') ? (
+                      <><Loader2 className="h-4 w-4 animate-spin" /><span className="text-sm">Validation pending…</span></>
+                    ) : (
+                      <span className="text-sm">No validation results available for this case.</span>
+                    )}
                   </div>
                 ) : validations.map((v, i) => (
                   <div key={i} className="rounded-lg border border-border/50 bg-secondary/50 p-3">
@@ -455,7 +466,7 @@ const CaseDetail = () => {
                   </div>
                 ))}
 
-                {/* Authenticity Checks -- only show in demo mode or if no llmResult */}
+                {/* Authenticity Checks — only show in demo mode or if no llmResult */}
                 {(isDemoMode || !llmResult) && (
                   <div className="mt-4 pt-3 border-t border-border">
                     <p className="mb-2 text-sm font-medium text-foreground">Authenticity Checks</p>
@@ -483,7 +494,7 @@ const CaseDetail = () => {
                 {timeline === null ? (
                   <div className="flex items-center gap-2 py-4 justify-center text-muted-foreground">
                     <Loader2 className="h-4 w-4 animate-spin" />
-                    <span className="text-sm">Timeline pending...</span>
+                    <span className="text-sm">Timeline pending…</span>
                   </div>
                 ) : (
                 <div className="relative space-y-4 pl-6 before:absolute before:left-[11px] before:top-2 before:h-[calc(100%-16px)] before:w-px before:bg-border">

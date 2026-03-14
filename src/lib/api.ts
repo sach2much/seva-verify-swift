@@ -76,7 +76,7 @@ function safeParseObject(val: unknown): Record<string, unknown> | null {
   return null;
 }
 
-// ---- MAP Firestore doc -> App Case model ----
+// ---- MAP Firestore doc → App Case model ----
 // n8n writes: extractedFields[].{label, value, confidence, confidenceBand, evidence}
 // n8n writes: validations[].{field, rule, result, message}
 // n8n writes: llmResult.{authenticityScore, riskBand, flags, reasoning}
@@ -84,13 +84,10 @@ function safeParseObject(val: unknown): Record<string, unknown> | null {
 function mapFirestoreDoc(data: Record<string, any>, docId: string): Case {
   const rawExtractedFields = safeParseArray(data.extractedFields);
   const rawValidations = safeParseArray(data.validations);
-  const rawLlmResult = safeParseObject(data.llmResult);
-
-  // Debug logging (temporary -- remove after confirming fix)
-  console.log('[DocVerify Debug] Raw Firestore data keys:', Object.keys(data));
-  console.log('[DocVerify Debug] extractedFields:', typeof data.extractedFields, Array.isArray(data.extractedFields), rawExtractedFields.length, 'items');
-  console.log('[DocVerify Debug] validations:', typeof data.validations, Array.isArray(data.validations), rawValidations.length, 'items');
-  console.log('[DocVerify Debug] llmResult:', typeof data.llmResult, rawLlmResult ? 'present' : 'null');
+  // n8n writes llmVerification (new) — fall back to llmResult (legacy)
+  const rawLlmVerification = safeParseObject(data.llmVerification);
+  const rawLlmResultLegacy = safeParseObject(data.llmResult);
+  const rawLlmData = rawLlmVerification || (rawLlmResultLegacy && Object.keys(rawLlmResultLegacy).length > 0 ? rawLlmResultLegacy : null);
 
   return {
     caseId: data.caseId || docId,
@@ -105,8 +102,8 @@ function mapFirestoreDoc(data: Record<string, any>, docId: string): Case {
     docTypePredicted: data.docTypePredicted || data.docType || '',
     docTypeFinal: data.docTypeFinal || data.docType || '',
     status: data.status || 'PROCESSING',
-    riskScore: data.riskScore ?? (rawLlmResult ? (100 - ((rawLlmResult as any).authenticityScore ?? 0)) : 0),
-    riskBand: data.riskBand || (rawLlmResult ? (rawLlmResult as any).riskBand : 'LOW') || 'LOW',
+    riskScore: data.finalRiskScore ?? data.riskScore ?? (rawLlmData ? (100 - ((rawLlmData as any).authenticityScore ?? 0)) : 0),
+    riskBand: data.riskBand || (rawLlmData ? (rawLlmData as any).riskBand : 'LOW') || 'LOW',
     applicantName: data.applicantName || '',
     ocrRawText: data.ocrRawText || '',
 
@@ -125,14 +122,19 @@ function mapFirestoreDoc(data: Record<string, any>, docId: string): Case {
       message: v.message || v.explain || v.description || '',
     })),
 
-    llmResult: rawLlmResult ? {
-      authenticityScore: (rawLlmResult as any).authenticityScore ?? 0,
-      riskBand: (rawLlmResult as any).riskBand || data.riskBand || 'LOW',
-      flags: safeParseArray((rawLlmResult as any).flags) as string[],
-      reasoning: (rawLlmResult as any).reasoning || '',
-    } : null,
+    llmResult: rawLlmData ? {
+      authenticityScore: (rawLlmData as any).authenticityScore ?? data.finalAuthenticityScore ?? 0,
+      riskBand: (rawLlmData as any).manipulationRisk || (rawLlmData as any).riskBand || data.riskBand || 'LOW',
+      flags: safeParseArray((rawLlmData as any).redFlags || (rawLlmData as any).flags) as string[],
+      reasoning: (rawLlmData as any).reasoning || data.llmReasoning || '',
+    } : (data.llmReasoning ? {
+      authenticityScore: data.finalAuthenticityScore ?? 0,
+      riskBand: data.riskBand || 'LOW',
+      flags: safeParseArray(data.allFlags) as string[],
+      reasoning: data.llmReasoning || '',
+    } : null),
 
-    flags: safeParseArray(data.flags) as string[],
+    flags: safeParseArray(data.allFlags || data.flags) as string[],
     auditTrail: safeParseArray(data.auditTrail) as AuditEvent[],
   };
 }
