@@ -13,7 +13,7 @@ import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
 import {
   ChevronRight, Download, CheckCircle, AlertTriangle, XCircle,
-  Upload as UploadIcon, ScanSearch, Layers, FileOutput, ShieldCheck, Pencil, Clock, ChevronDown, ArrowLeft, Loader2
+  Upload as UploadIcon, ScanSearch, Layers, FileOutput, ShieldCheck, Pencil, Clock, ChevronDown, ArrowLeft, Loader2, FileCheck
 } from 'lucide-react';
 import { toast } from 'sonner';
 
@@ -303,6 +303,83 @@ const CaseDetail = () => {
                 )}
               </CardContent>
             </Card>
+
+            {/* Document Classification */}
+            {!isDemoMode && apiCase && (
+              <Card className="border-border bg-card">
+                <CardHeader className="pb-2">
+                  <CardTitle className="text-base text-foreground flex items-center gap-2">
+                    <FileCheck className="h-4 w-4 text-primary" />
+                    Document Classification
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-3">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="text-xs text-muted-foreground">Identified Document Type</p>
+                      <p className="text-lg font-semibold text-foreground">
+                        {(apiCase.finalDocumentType || apiCase.docType || 'UNKNOWN').replace(/_/g, ' ')}
+                      </p>
+                    </div>
+                    {apiCase.classificationConfidence != null && (
+                      <div className="text-right">
+                        <p className="text-xs text-muted-foreground">Confidence</p>
+                        <p className={`text-lg font-bold ${
+                          apiCase.classificationConfidence >= 80 ? 'text-success' :
+                          apiCase.classificationConfidence >= 50 ? 'text-warning' :
+                          'text-destructive'
+                        }`}>
+                          {apiCase.classificationConfidence}%
+                        </p>
+                      </div>
+                    )}
+                  </div>
+                  {apiCase.classificationScores && Object.keys(apiCase.classificationScores).length > 0 && (
+                    <div>
+                      <p className="text-xs text-muted-foreground mb-2">Classification Scores</p>
+                      <div className="space-y-1.5">
+                        {Object.entries(apiCase.classificationScores)
+                          .sort(([,a], [,b]) => (b as number) - (a as number))
+                          .map(([type, score]) => {
+                            const maxScore = Math.max(...Object.values(apiCase.classificationScores!).map(Number));
+                            const pct = maxScore > 0 ? ((score as number) / maxScore) * 100 : 0;
+                            const isTop = type === (apiCase.finalDocumentType || apiCase.docType);
+                            return (
+                              <div key={type} className="flex items-center gap-2">
+                                <span className={`text-xs w-36 truncate ${isTop ? 'font-semibold text-foreground' : 'text-muted-foreground'}`}>
+                                  {type.replace(/_/g, ' ')}
+                                </span>
+                                <div className="flex-1 h-2 bg-secondary rounded-full overflow-hidden">
+                                  <div
+                                    className={`h-full rounded-full transition-all ${isTop ? 'bg-primary' : 'bg-muted-foreground/30'}`}
+                                    style={{ width: `${pct}%` }}
+                                  />
+                                </div>
+                                <span className={`text-xs w-8 text-right ${isTop ? 'font-semibold text-foreground' : 'text-muted-foreground'}`}>
+                                  {score as number}
+                                </span>
+                              </div>
+                            );
+                          })}
+                      </div>
+                    </div>
+                  )}
+                  {apiCase.documentTypeAgreement && (
+                    <div className="flex items-center gap-2 pt-1">
+                      <Badge variant="outline" className={`text-xs ${
+                        apiCase.documentTypeAgreement === 'AGREE'
+                          ? 'border-success/40 bg-success/10 text-success'
+                          : 'border-warning/40 bg-warning/10 text-warning'
+                      }`}>
+                        {apiCase.documentTypeAgreement === 'AGREE'
+                          ? 'User selection matches AI classification'
+                          : 'AI classification differs from user selection'}
+                      </Badge>
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+            )}
 
             {/* Extracted Fields */}
             <Card className="border-border bg-card">

@@ -58,6 +58,10 @@ export interface Case {
   auditTrail?: AuditEvent[];
   decision?: { status: string; decidedBy: string; decidedAt: string; reasonCodes: string[] };
   fileDownloadUrl?: string;
+  classificationConfidence?: number;
+  classificationScores?: Record<string, number>;
+  finalDocumentType?: string;
+  documentTypeAgreement?: string;
 }
 
 // ---- HELPERS: safely parse values that might be JSON strings or already native objects ----
@@ -138,6 +142,10 @@ function mapFirestoreDoc(data: Record<string, any>, docId: string): Case {
 
     flags: safeParseArray(data.allFlags || data.flags) as string[],
     auditTrail: safeParseArray(data.auditTrail) as AuditEvent[],
+    classificationConfidence: data.classificationConfidence ?? null,
+    classificationScores: data.classificationScores ?? null,
+    finalDocumentType: data.finalDocumentType || data.docType || null,
+    documentTypeAgreement: data.documentTypeAgreement ?? null,
   };
 }
 
