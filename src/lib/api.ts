@@ -1,6 +1,7 @@
 import { ENV } from '@/config/env';
-import { db } from '@/lib/firebase';
+import { db, storage } from '@/lib/firebase';
 import { collection, doc, getDoc, getDocs, query, orderBy, limit, onSnapshot, updateDoc } from 'firebase/firestore';
+import { ref, getDownloadURL } from 'firebase/storage';
 
 // ---- CASE TYPES ----
 
@@ -56,6 +57,7 @@ export interface Case {
   flags?: string[];
   auditTrail?: AuditEvent[];
   decision?: { status: string; decidedBy: string; decidedAt: string; reasonCodes: string[] };
+  fileDownloadUrl?: string;
 }
 
 // ---- HELPERS: safely parse values that might be JSON strings or already native objects ----
@@ -231,6 +233,18 @@ export async function submitDecision(caseId: string, decision: 'APPROVED' | 'REJ
     status: decision,
     decision: { status: decision, decidedBy, decidedAt: new Date().toISOString(), reasonCodes },
   });
+}
+
+// ---- GET FILE DOWNLOAD URL from Firebase Storage ----
+export async function getFileDownloadUrl(storagePath: string): Promise<string | null> {
+  if (!storage || !storagePath) return null;
+  try {
+    const fileRef = ref(storage, storagePath);
+    return await getDownloadURL(fileRef);
+  } catch (err) {
+    console.error('[DocVerify] Failed to get download URL:', err);
+    return null;
+  }
 }
 
 // ---- POLL CASE STATUS (fallback if no realtime) ----

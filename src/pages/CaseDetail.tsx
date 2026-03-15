@@ -1,9 +1,9 @@
 import { useState, useEffect, useRef } from 'react';
-import { useParams, Link } from 'react-router-dom';
+import { useParams, Link, useNavigate } from 'react-router-dom';
 import AppNavbar from '@/components/AppNavbar';
 import { StatusBadge, RiskBadge, SeverityBadge, ConfidenceBadge } from '@/components/StatusBadges';
 import { sampleFields, validationResults, authenticityChecks, auditTimeline, mockCases } from '@/data/mockData';
-import { getCase, saveFieldEdits, submitDecision, type Case as ApiCase, type ExtractedField } from '@/lib/api';
+import { getCase, saveFieldEdits, submitDecision, getFileDownloadUrl, type Case as ApiCase, type ExtractedField } from '@/lib/api';
 import { ENV } from '@/config/env';
 import { useAuth } from '@/context/AuthContext';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -63,6 +63,7 @@ function formatLabel(label: string): string {
 
 const CaseDetail = () => {
   const { caseId } = useParams();
+  const navigate = useNavigate();
   const { user } = useAuth();
   const [expandedRule, setExpandedRule] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
@@ -72,6 +73,7 @@ const CaseDetail = () => {
   const [decidingApprove, setDecidingApprove] = useState(false);
   const [decidingReject, setDecidingReject] = useState(false);
   const [localStatus, setLocalStatus] = useState<string | null>(null);
+  const [fileUrl, setFileUrl] = useState<string | null>(null);
   const fieldRefs = useRef<Record<string, HTMLInputElement | null>>({});
 
   // Use mock data as fallback
@@ -91,6 +93,12 @@ const CaseDetail = () => {
     getCase(caseId).then(c => {
       if (c) {
         setApiCase(c);
+        // Fetch the file download URL for document preview
+        if (c.fileStoragePath) {
+          getFileDownloadUrl(c.fileStoragePath).then(url => {
+            if (url) setFileUrl(url);
+          });
+        }
         // If still processing, poll every 4s until results arrive
         if ((c.status === 'PROCESSING' || c.status === 'RECEIVED') && c.extractedFields.length === 0) {
           pollTimer = setInterval(async () => {
@@ -214,6 +222,8 @@ const CaseDetail = () => {
       }
       setLocalStatus(decision);
       toast.success(`Case ${decision.toLowerCase()} successfully`);
+      // Navigate back to dashboard after successful decision
+      setTimeout(() => navigate('/dashboard'), 1200);
     } catch (error) {
       toast.error(error instanceof Error ? error.message : `Failed to ${decision.toLowerCase()} case`);
     } finally {
@@ -262,14 +272,35 @@ const CaseDetail = () => {
           <div className="space-y-6 lg:col-span-3">
             {/* Document Preview */}
             <Card className="border-border bg-card">
-              <CardContent className="p-4">
-                <div className="flex h-48 items-center justify-center rounded-lg bg-secondary">
-                  <div className="text-center text-muted-foreground">
-                    <ScanSearch className="mx-auto mb-2 h-10 w-10" />
-                    <p className="text-sm">Document Preview — {caseData.documentType}</p>
-                    <p className="text-xs">{apiCase?.fileName || 'aadhaar_scan.pdf'}</p>
+              <CardHeader className="pb-2">
+                <CardTitle className="text-base text-foreground">Document Preview — {caseData.documentType}</CardTitle>
+                <p className="text-xs text-muted-foreground">{apiCase?.fileName || 'document'}</p>
+              </CardHeader>
+              <CardContent className="p-4 pt-0">
+                {fileUrl ? (
+                  apiCase?.fileType === 'application/pdf' ? (
+                    <iframe
+                      src={fileUrl}
+                      className="w-full rounded-lg border border-border"
+                      style={{ height: '500px' }}
+                      title="Document Preview"
+                    />
+                  ) : (
+                    <img
+                      src={fileUrl}
+                      alt={apiCase?.fileName || 'Uploaded document'}
+                      className="w-full rounded-lg border border-border object-contain"
+                      style={{ maxHeight: '500px' }}
+                    />
+                  )
+                ) : (
+                  <div className="flex h-48 items-center justify-center rounded-lg bg-secondary">
+                    <div className="text-center text-muted-foreground">
+                      <ScanSearch className="mx-auto mb-2 h-10 w-10" />
+                      <p className="text-sm">{apiCase?.fileStoragePath ? 'Loading document preview…' : 'No document preview available'}</p>
+                    </div>
                   </div>
-                </div>
+                )}
               </CardContent>
             </Card>
 
